@@ -141,7 +141,7 @@ export const MAXIMUM_CONSECUTIVE_FAILURES = 10;
 /** Name prefix used to filter the Web Bluetooth device picker. */
 export const MOTION_SENSOR_NAME_FILTER = "Motion";
 
-/** The pasco-ble measurement this sim reads. */
+/** Human-readable name of the position derived from the raw echo-time sample. */
 export const POSITION_MEASUREMENT = "Position";
 
 MotionMatchNamespace.register("MotionMatchConstants", {

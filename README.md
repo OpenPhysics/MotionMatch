@@ -65,7 +65,7 @@ readings — useful when bringing hardware up.
 | Tool | Version | Notes |
 |---|---|---|
 | SceneryStack | ^3.0.0 | Simulation framework; `bamboo` for the chart |
-| pasco-ble | ^0.3.65 | PASCO wireless sensors over Web Bluetooth |
+| Web Bluetooth | browser API | Direct, dependency-free PS-3219 communication |
 | Vite | ^8 | Build tool and dev server |
 | TypeScript | ^7 | `erasableSyntaxOnly` — no `enum`, no `namespace` |
 | Biome | ^2.5 | Lint + format |

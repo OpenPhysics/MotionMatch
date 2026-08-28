@@ -42,14 +42,10 @@ way to guarantee that.
 
 ## Things that will bite
 
-- **`new PASCOBLEDevice()` throws where Web Bluetooth is missing** (Firefox,
-  Safari, insecure origin, headless). It is built lazily on first connect;
-  constructing it eagerly took the whole sensor screen down for those users.
-  `npm run test:fuzz:quick` is what catches this.
-- **Web Bluetooth needs a user gesture** — everything before `scan()` in
-  `connect()` is synchronous. Do not `await` ahead of it.
+- **Web Bluetooth needs a user gesture** — `requestDevice()` must be reached
+  directly from the Connect button. Do not add an `await` ahead of it.
 - **`connect()` never rejects.** Outcomes land on Properties. A dismissed picker
-  returns an **empty array** from `pasco-ble`, not a throw, and is not an error.
+  throws `DeviceSelectionCancelled` internally and is not shown as an error.
 - **Never accumulate run time in a float.** Sample times are `index × period`.
   An earlier version drifted and ended runs a sample early; tests pin it.
 - **`dispose()` must stay idempotent** — axon Properties throw on double
@@ -64,21 +60,6 @@ way to guarantee that.
   `profiles.aStringProperty`. Getting it wrong renders the literal `undefined`.
 
 ## Compliance carve-outs
-
-### The `@/` alias for pasco-ble — remove when upstream is fixed
-
-`pasco-ble@0.3.65` publishes unresolved `@/…` path aliases in both `dist/*.js`
-and `dist/*.d.ts` with no `imports` map, so the package cannot be imported at
-all without help. `@/*` is mapped to `pasco-ble/dist/*` in **four** places —
-`vite.config.ts`, `vitest.config.ts`, `tsconfig.json`, `tsconfig.test.json`.
-This sim writes no `@/` imports of its own, so nothing collides. Delete all four
-once pascoTS ships a build that rewrites its aliases.
-
-The dependency costs roughly **210 kB gzipped** over a sibling sim, nearly all
-`mathjs` (used by pasco-ble's equation parser). If that becomes unacceptable,
-vendor a client on the `RadioactivityAndStatistics/src/common/hardware/PascoProtocol.ts`
-model — same protocol, different interface/sensor ids (1042/2048) and the
-echo-time → position conversion.
 
 ### `package.json` overrides
 

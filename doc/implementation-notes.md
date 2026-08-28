@@ -51,65 +51,32 @@ student.
 
 ## The PASCO link
 
-The sim depends on [`pasco-ble`](https://github.com/veillette/pascoTS) rather
-than re-implementing the protocol. Unlike the Geiger counter in
-`RadioactivityAndStatistics` — interface 1064, supported by neither open library
-— the Wireless Motion Sensor is interface **1042** → sensor **2048**, fully
-covered, including the echo-time → position equation and the unit tables.
+The sim implements only the PASCO packets needed by the Wireless Motion Sensor,
+following the dependency-free client in `RadioactivityAndStatistics`. The
+PS-3219 is interface **1042** with sensor **2048** on channel 0 (GATT service 1).
+Its only raw sample is a two-byte little-endian echo time.
 
 ### Three things worth knowing
 
-1. **`new PASCOBLEDevice()` throws where Web Bluetooth is missing.** Firefox,
-   Safari, an insecure origin, a headless test browser. It is therefore
-   constructed lazily, on the first connect attempt — building it in the model
-   constructor took the entire Motion Sensor screen down at creation time for
-   those users instead of showing them the "use Chrome or Edge" message the
-   panel already has. The fuzz test catches this; keep it passing.
+1. **Responses are asymmetric.** The one-shot command is written to service 1,
+   but its response arrives on device service 0. Subscribe to service 0 before
+   sending the keepalive or reads. Routing that packet only as device metadata
+   leaves the sensor decoder empty and turns every sample into a false zero.
 
-2. **`connect()` never rejects.** Connection outcomes are UI state, not
+2. **`connect()` never rejects to the UI.** Connection outcomes are UI state, not
    exceptions. The button listener stays synchronous so the browser still sees a
    user gesture, and every outcome lands on `connectionStateProperty` /
-   `errorMessageProperty`. A dismissed device picker comes back from
-   `pasco-ble` as an **empty array**, not a throw, and returns to DISCONNECTED
+   `errorMessageProperty`. A dismissed device picker returns to DISCONNECTED
    with no error — cancelling is not failing.
 
-3. **Polling, not streaming.** `readData` is one BLE round trip. The poll loop
+3. **Polling, not streaming.** `readEchoTime` is one BLE round trip. The poll loop
    is re-entrancy guarded and tolerates `MAXIMUM_CONSECUTIVE_FAILURES` dropped
    reads before declaring an error; skipping a tick is harmless because the
    model samples the latest value.
 
-### The `@/` alias workaround — remove when upstream is fixed
-
-`pasco-ble@0.3.65` ships **unresolved `@/…` path aliases in both its published
-`dist/*.js` and `dist/*.d.ts`**, and declares no `imports` map to resolve them.
-Without help the package cannot be imported at all: Node, esbuild and Rollup all
-fail with `Cannot find package '@/utils'`, and TypeScript silently degrades
-`PASCOBLEDevice` to a class with no `TypedEventEmitter` base.
-
-Every alias in that package is rooted at its own `dist/`, so the sim maps `@/*`
-there in **four** places:
-
-| File | What it does |
-|---|---|
-| `vite.config.ts` | `resolve.alias` for dev server and build |
-| `vitest.config.ts` | the same, for unit tests |
-| `tsconfig.json` | `paths`, so `npm run check` resolves the typings |
-| `tsconfig.test.json` | the same, for the test project |
-
-This sim never writes `@/` imports of its own, so the alias collides with
-nothing. **Delete all four** once pascoTS publishes a build that rewrites its
-aliases (tsc-alias, or a bundler). Nothing else depends on it.
-
-The dependency also costs about **210 kB gzipped** over a sibling sim, almost
-all of it `mathjs`, which `pasco-ble` uses for its equation parser. If that ever
-becomes unacceptable, the fallback is a vendored client on the
-`RadioactivityAndStatistics/src/common/hardware/PascoProtocol.ts` model: the
-protocol is identical, only the interface/sensor ids and the echo-time
-conversion change.
-
 ## Things that will bite
 
-- **Web Bluetooth needs a user gesture.** Everything before `scan()` in
+- **Web Bluetooth needs a user gesture.** The `requestDevice()` call in
   `connect()` is synchronous for that reason. Do not `await` anything ahead of it.
 - **Do not accumulate run time in a float.** Sample times come from an integer
   index times the period. An earlier version added 0.05 repeatedly and ended

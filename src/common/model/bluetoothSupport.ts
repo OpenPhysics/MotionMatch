@@ -4,15 +4,10 @@
  * Whether this browser can talk to the sensor at all, reduced to something the
  * view can switch on.
  *
- * Detection is delegated to pasco-ble's `checkBrowserSupport()`; only the
- * classification lives here, so the sim can show its own localized message
- * rather than the library's English one.
- *
  * The result is memoized: it cannot change during a session, and the view asks
  * for it every time it rebuilds the sensor panel.
  */
 
-import { checkBrowserSupport } from "pasco-ble";
 import MotionMatchNamespace from "../../MotionMatchNamespace.js";
 
 export const BluetoothStatus = {
@@ -40,13 +35,11 @@ export function getBluetoothStatus(): BluetoothStatusValue {
     return cachedStatus;
   }
 
-  const support = checkBrowserSupport();
-
   // Order matters: an insecure context is worth reporting separately because it
   // is the one failure the teacher can actually fix, by serving over HTTPS.
-  cachedStatus = !support.secureContext
+  cachedStatus = !window.isSecureContext
     ? BluetoothStatus.INSECURE_CONTEXT
-    : support.supported
+    : "bluetooth" in navigator
       ? BluetoothStatus.AVAILABLE
       : BluetoothStatus.UNSUPPORTED_BROWSER;
 

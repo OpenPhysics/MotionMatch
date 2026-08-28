@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import type { Plugin, Rollup } from "vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -16,9 +15,8 @@ const securityHeaders: Record<string, string> = {
   "Cross-Origin-Embedder-Policy": "require-corp",
   "Content-Security-Policy": [
     "default-src 'self'",
-    // TODO(scenerystack): drop 'unsafe-eval' when SceneryStack no longer needs
-    // Function/eval for query-parameter parsing — reopen a CSP audit then.
-    // 'unsafe-eval' is required for SceneryStack query parameter parsing
+    // SceneryStack 3's query parsing and seedrandom dependency require dynamic
+    // evaluation. Keep this aligned with the shared SceneryStack template.
     "script-src 'self' 'unsafe-eval'",
     "worker-src blob: 'self'",
     // TODO(scenerystack): drop 'unsafe-inline' when SceneryStack stops setting
@@ -130,23 +128,6 @@ function inlineSingleFile(): Plugin {
 }
 
 // https://vite.dev/config/
-/**
- * pasco-ble 0.3.65 ships with unresolved `@/…` path aliases in BOTH its
- * published `dist/*.js` and `dist/*.d.ts`, and declares no `imports` map to
- * resolve them. Without this alias the package cannot be imported at all —
- * Node, esbuild and Rollup all fail with "Cannot find package '@/utils'".
- *
- * Every alias in that package is rooted at its own `dist/`, so mapping `@/*`
- * there fixes the package without affecting this sim (which never writes `@/`
- * imports of its own). Mirrored in vitest.config.ts, and as `paths` in
- * tsconfig.json / tsconfig.test.json for `npm run check`.
- *
- * TODO(pasco-ble): remove all four once pascoTS publishes a build that rewrites
- * its aliases (e.g. via tsc-alias or a bundler). Nothing else depends on it.
- */
-const PASCO_BLE_DIST = fileURLToPath(new URL("./node_modules/pasco-ble/dist/", import.meta.url));
-const pascoBleAlias = [{ find: /^@\/(.*)$/, replacement: `${PASCO_BLE_DIST}$1` }];
-
 export default defineConfig(({ mode }) => {
   // `vite build --mode single` produces a single self-contained dist/index.html.
   const single = mode === "single";
@@ -154,7 +135,6 @@ export default defineConfig(({ mode }) => {
   return {
     // So the build can be served from an arbitrary path
     base: "./",
-    resolve: { alias: pascoBleAlias },
     build: {
       // Requires Vite 8+ / esbuild ≥0.24. Run `npm ci` if build errors on ES2024.
       target: "es2024",

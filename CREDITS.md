@@ -14,9 +14,10 @@ Scientific. MatchGraph! is a trademark of PASCO Scientific.
 
 ## Hardware support
 
-Wireless sensor communication uses [`pasco-ble`](https://github.com/veillette/pascoTS),
-an independent TypeScript Web Bluetooth library for PASCO wireless sensors,
-itself inspired by [PASCO's official Python library](https://github.com/PASCOscientific/pasco_python).
+Wireless sensor communication is a narrow Web Bluetooth implementation of the
+PS-3219 protocol, informed by [PASCO's official Python
+library](https://github.com/PASCOscientific/pasco_python) and the sibling
+Radioactivity and Statistics simulation's PASCO transport.
 
 ## Artwork
 

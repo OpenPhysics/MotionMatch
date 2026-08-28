@@ -119,8 +119,8 @@ curve currently drawn.
 
 The **PASCO Wireless Motion Sensor (PS-3219)** measures 0.15–4 m by ultrasound
 at up to 250 Hz, with 1 mm resolution. It reports a raw echo time in
-microseconds; position is `echo / 10⁶ × 344 m/s ÷ 2`, computed host-side by
-`pasco-ble`. The sim polls `Position` every 40 ms — faster than it samples, so a
+microseconds; position is `echo / 10⁶ × 344 m/s ÷ 2`, computed host-side. The
+sim requests the two-byte echo time every 40 ms — faster than it samples, so a
 fresh reading is always waiting.
 
 A reading of exactly 0 means no echo returned: there was nothing within

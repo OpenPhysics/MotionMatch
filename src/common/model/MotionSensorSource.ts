@@ -2,20 +2,11 @@
  * MotionSensorSource.ts
  *
  * The Motion Sensor screen's source: a PASCO Wireless Motion Sensor (PS-3219)
- * reached over Web Bluetooth through the `pasco-ble` library.
+ * reached directly through Web Bluetooth using its small PASCO wire protocol.
  *
  * ── Polling, not streaming ────────────────────────────────────────────────────
- * pasco-ble's transport is request/response — one `readData` is one BLE round
- * trip. We poll faster than the model samples, so a fresh reading is always
- * waiting when the model's fixed clock comes round.
- *
- * ── The device object is built lazily ─────────────────────────────────────────
- * `new PASCOBLEDevice()` throws outright where Web Bluetooth is missing —
- * Firefox, Safari, an insecure origin, a headless test browser. Constructing it
- * in this constructor therefore took the whole Motion Sensor screen down at
- * model-creation time for those users, instead of showing them the "use Chrome
- * or Edge" message the panel already has. It is now created on the first
- * connect attempt, which is the only moment it can be used anyway.
+ * One `readEchoTime` is one BLE round trip. We poll faster than the model
+ * samples, so a fresh reading is waiting when the fixed clock comes round.
  *
  * ── Errors never reach the caller ─────────────────────────────────────────────
  * `connect()` resolves even when it fails. Connection outcomes are UI state, not
@@ -25,16 +16,16 @@
  * picker is not a failure — it returns to DISCONNECTED with no message.
  */
 
-import { PASCOBLEDevice } from "pasco-ble";
 import { BooleanProperty, NumberProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import {
   DEFAULT_POLL_INTERVAL_MS,
   MAXIMUM_CONSECUTIVE_FAILURES,
-  MOTION_SENSOR_NAME_FILTER,
   POSITION_MEASUREMENT,
   POSITION_RANGE_M,
 } from "../../MotionMatchConstants.js";
 import MotionMatchNamespace from "../../MotionMatchNamespace.js";
+import { BluetoothMotionSensor, DeviceSelectionCancelled } from "../../sensor/model/BluetoothMotionSensor.js";
+import { echoTimeToMetres } from "../../sensor/model/PascoMotionProtocol.js";
 import { ConnectionState, type ConnectionStateValue } from "./ConnectionState.js";
 import { PositionSourceType, type PositionSourceTypeValue, type TPositionSource } from "./PositionSource.js";
 
@@ -42,9 +33,7 @@ export type MotionSensorSourceOptions = {
   /** Poll period in milliseconds; overridable from a query parameter for bring-up. */
   readonly pollIntervalMs?: number;
   /**
-   * When true, every poll reads the sensor's whole measurement list instead of
-   * just Position, and publishes it verbatim on {@link diagnosticsProperty}.
-   * Costs extra BLE round trips, so it is off unless someone is debugging.
+   * When true, publishes the raw echo time and calculated position.
    */
   readonly diagnosticsEnabledProperty?: TReadOnlyProperty<boolean>;
 };
@@ -83,12 +72,12 @@ export class MotionSensorSource implements TPositionSource {
   private readonly diagnosticsEnabledProperty: TReadOnlyProperty<boolean> | null;
   private readonly handleUnexpectedDisconnect: () => void;
 
-  /** Built on the first connect attempt; null until then, and where BLE is unavailable. */
-  private device: PASCOBLEDevice | null = null;
+  private device: BluetoothMotionSensor | null = null;
 
   private pollTimerId: ReturnType<typeof setInterval> | null = null;
   private isPolling = false;
   private consecutiveFailures = 0;
+  private diagnosticsStartTimeMs = 0;
 
   public constructor(providedOptions?: MotionSensorSourceOptions) {
     this.pollIntervalMs = providedOptions?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
@@ -101,9 +90,6 @@ export class MotionSensorSource implements TPositionSource {
     this.availableProperty = new BooleanProperty(false);
     this.measurementListProperty = new Property<string>("");
     this.diagnosticsProperty = new Property<string>("");
-
-    // Stored as a field so it can be removed in dispose(); an anonymous closure
-    // here would leak this source for the lifetime of the device object.
     this.handleUnexpectedDisconnect = () => {
       this.stopPolling();
       this.availableProperty.value = false;
@@ -124,9 +110,8 @@ export class MotionSensorSource implements TPositionSource {
   /**
    * Opens the browser's device picker and connects. Never rejects.
    *
-   * Everything before `scan()` is synchronous so the call still counts as
-   * happening inside the user gesture that triggered it — Web Bluetooth refuses
-   * `requestDevice` otherwise.
+   * The device picker is invoked before the first await so the browser still
+   * recognizes the Connect button's user gesture.
    */
   public async connect(): Promise<void> {
     if (this.connectionStateProperty.value === ConnectionState.CONNECTING) {
@@ -136,49 +121,29 @@ export class MotionSensorSource implements TPositionSource {
     this.connectionStateProperty.value = ConnectionState.CONNECTING;
     this.errorMessageProperty.value = null;
 
-    let device: PASCOBLEDevice;
+    const device = new BluetoothMotionSensor(this.handleUnexpectedDisconnect);
+    this.device = device;
+
     try {
-      // Constructing the device is itself a Web Bluetooth operation and throws
-      // where the API is missing, so it lives inside the try with everything else.
-      if (this.device === null) {
-        this.device = new PASCOBLEDevice();
-        this.device.on("disconnected", this.handleUnexpectedDisconnect);
-      }
-      device = this.device;
+      await device.connect();
     } catch (error) {
-      this.connectionStateProperty.value = ConnectionState.ERROR;
-      this.errorMessageProperty.value = error instanceof Error ? error.message : String(error);
-      return;
-    }
-
-    try {
-      const devices = await device.scan(MOTION_SENSOR_NAME_FILTER);
-
-      // pasco-ble maps a dismissed picker to an empty result rather than an
-      // error, so this branch is "the student changed their mind", not a fault.
-      if (devices.length === 0) {
+      await device.disconnect();
+      this.device = null;
+      if (error instanceof DeviceSelectionCancelled) {
         this.connectionStateProperty.value = ConnectionState.DISCONNECTED;
         return;
       }
-
-      const chosen = devices[0];
-      if (chosen === undefined) {
-        this.connectionStateProperty.value = ConnectionState.DISCONNECTED;
-        return;
-      }
-
-      await device.connect(chosen);
-    } catch (error) {
       this.connectionStateProperty.value = ConnectionState.ERROR;
       this.errorMessageProperty.value = error instanceof Error ? error.message : String(error);
       return;
     }
 
     this.deviceNameProperty.value = device.name;
-    this.measurementListProperty.value = device.getMeasurementList().join(", ");
+    this.measurementListProperty.value = POSITION_MEASUREMENT;
     this.connectionStateProperty.value = ConnectionState.CONNECTED;
     this.availableProperty.value = true;
     this.consecutiveFailures = 0;
+    this.diagnosticsStartTimeMs = performance.now();
     this.startPolling();
   }
 
@@ -223,30 +188,27 @@ export class MotionSensorSource implements TPositionSource {
    */
   private async poll(): Promise<void> {
     const device = this.device;
-    if (this.isPolling || device === null || !device.isConnected()) {
+    if (this.isPolling || device === null || !device.isConnected) {
       return;
     }
     this.isPolling = true;
 
     try {
-      let metres: number | null;
+      const echoTimeMicroseconds = await device.readEchoTime();
+      const metres = echoTimeToMetres(echoTimeMicroseconds);
+      this.diagnosticsProperty.value = `${POSITION_MEASUREMENT}=${metres}`;
 
       if (this.diagnosticsEnabledProperty?.value === true) {
-        // Read everything the device offers, so a zero Position can be told
-        // apart from a device that is answering nothing at all.
-        const names = device.getMeasurementList();
-        const data = await device.readDataList(names);
-        this.diagnosticsProperty.value = names
-          .map((name) => `${name}=${data[name] === null || data[name] === undefined ? "null" : data[name]}`)
-          .join("  ");
-        metres = data[POSITION_MEASUREMENT] ?? null;
-      } else {
-        metres = await device.readData(POSITION_MEASUREMENT);
-        this.diagnosticsProperty.value = `${POSITION_MEASUREMENT}=${metres === null ? "null" : metres}`;
+        const elapsedSeconds = (performance.now() - this.diagnosticsStartTimeMs) / 1000;
+        // biome-ignore lint/suspicious/noConsole: Explicit hardware bring-up diagnostics.
+        console.info(`[MotionMatch sensor +${elapsedSeconds.toFixed(3)} s]`, {
+          EchoTimeMicroseconds: echoTimeMicroseconds,
+          Position: metres,
+        });
       }
 
       this.consecutiveFailures = 0;
-      if (metres !== null && Number.isFinite(metres)) {
+      if (Number.isFinite(metres)) {
         // Out-of-range echoes read as wild distances; clamping keeps the walker
         // on the track and the trace on the chart instead of flinging both.
         this.sensorPositionProperty.value = POSITION_RANGE_M.constrainValue(metres);
@@ -280,7 +242,6 @@ export class MotionSensorSource implements TPositionSource {
   public dispose(): void {
     this.stopPolling();
     if (this.device !== null) {
-      this.device.off("disconnected", this.handleUnexpectedDisconnect);
       // Fire-and-forget: dispose cannot await, and a failed teardown of a link
       // that is going away anyway has nothing useful to report.
       this.device.disconnect().catch(() => undefined);
