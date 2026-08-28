@@ -2,17 +2,18 @@
 
 import type { TReadOnlyProperty } from "scenerystack/axon";
 import { Circle, Line, Node, Rectangle, Text } from "scenerystack/scenery";
-import { PhetFont } from "scenerystack/scenery-phet";
+import { ArrowNode, PhetFont } from "scenerystack/scenery-phet";
 import { StringManager } from "../../i18n/StringManager.js";
 import MotionMatchColors from "../../MotionMatchColors.js";
-import { SAMPLE_PERIOD_S } from "../../MotionMatchConstants.js";
+import { RUN_DURATION_S, SAMPLE_PERIOD_S } from "../../MotionMatchConstants.js";
 import type { MotionMatchModel } from "../model/MotionMatchModel.js";
 import { LinearTransform } from "./LinearTransform.js";
 
 const HEIGHT = 58;
 const EDGE_INSET = 26;
-const DOT_PERIOD_S = 0.5;
+const DOT_PERIOD_S = 1;
 const SAMPLES_PER_DOT = Math.round(DOT_PERIOD_S / SAMPLE_PERIOD_S);
+const VECTOR_Y_OFFSET = 9;
 
 export class MotionDiagramNode extends Node {
   private readonly disposeMotionDiagramNode: () => void;
@@ -21,12 +22,13 @@ export class MotionDiagramNode extends Node {
     model: MotionMatchModel,
     width: number,
     visibleProperty: TReadOnlyProperty<boolean>,
-    showLabelsProperty: TReadOnlyProperty<boolean>,
+    showVelocityVectorsProperty: TReadOnlyProperty<boolean>,
   ) {
     super({ visibleProperty: visibleProperty });
 
     const transform = new LinearTransform(width, EDGE_INSET);
     const dots = new Node();
+    const vectors = new Node({ visibleProperty: showVelocityVectorsProperty });
     const baselineY = 39;
 
     this.children = [
@@ -41,49 +43,64 @@ export class MotionDiagramNode extends Node {
         stroke: MotionMatchColors.trackMarkColorProperty,
         lineWidth: 1,
       }),
+      vectors,
       dots,
     ];
 
-    let dotCount = 0;
     let updateFrame: number | null = null;
     const updateDots = () => {
-      const samples = model.getPositionTraceSamples().filter((_sample, index) => index % SAMPLES_PER_DOT === 0);
-      if (samples.length < dotCount) {
-        const oldDots = [...dots.children];
-        dots.removeAllChildren();
-        for (const dot of oldDots) {
-          dot.dispose();
-        }
-        dotCount = 0;
+      const allSamples = [...model.getPositionTraceSamples()];
+      const lastSample = allSamples.at(-1);
+      if (lastSample !== undefined && lastSample.time < RUN_DURATION_S) {
+        allSamples.push({ time: RUN_DURATION_S, value: lastSample.value });
       }
-      for (let i = dotCount; i < samples.length; i++) {
+      const samples = allSamples.filter((_sample, index) => index % SAMPLES_PER_DOT === 0);
+      const oldDots = [...dots.children];
+      dots.removeAllChildren();
+      for (const dot of oldDots) {
+        dot.dispose();
+      }
+      const oldVectors = [...vectors.children];
+      vectors.removeAllChildren();
+      for (const vector of oldVectors) {
+        vector.dispose();
+      }
+      for (let i = 0; i < samples.length; i++) {
         const sample = samples[i];
         if (sample !== undefined) {
           const dotX = transform.modelToViewX(sample.value);
-          const dotAndLabel = new Node({
-            children: [
-              new Circle(4.5, {
-                centerX: dotX,
-                centerY: baselineY,
-                // A gradual hue shift makes the passage of time visible even
-                // when labels are hidden.
-                fill: `hsl(${(196 + i * 7) % 360}, 78%, 52%)`,
-                stroke: MotionMatchColors.chartBackgroundColorProperty,
-                lineWidth: 1,
-              }),
-              new Text(`${Number(sample.time.toFixed(1))} s`, {
-                font: new PhetFont(9),
-                fill: MotionMatchColors.textColorProperty,
-                centerX: dotX,
-                bottom: baselineY - 6,
-                visibleProperty: showLabelsProperty,
-              }),
-            ],
-          });
-          dots.addChild(dotAndLabel);
+          const color = `hsl(${(196 + i * 7) % 360}, 78%, 52%)`;
+          dots.addChild(
+            new Circle(4.5, {
+              centerX: dotX,
+              centerY: baselineY,
+              fill: color,
+              stroke: MotionMatchColors.chartBackgroundColorProperty,
+              lineWidth: 1,
+            }),
+          );
+          const nextSample = samples[i + 1];
+          if (nextSample !== undefined && nextSample.value !== sample.value) {
+            // Keep vectors just below the dots so the displacement arrows do
+            // not obscure the position samples themselves.
+            vectors.addChild(
+              new ArrowNode(
+                dotX,
+                baselineY + VECTOR_Y_OFFSET,
+                transform.modelToViewX(nextSample.value),
+                baselineY + VECTOR_Y_OFFSET,
+                {
+                  fill: color,
+                  stroke: color,
+                  headWidth: 7,
+                  headHeight: 7,
+                  tailWidth: 2,
+                },
+              ),
+            );
+          }
         }
       }
-      dotCount = samples.length;
     };
     // Adding/removing scenery nodes can trigger bounds and visibility
     // notifications. Do that on the next animation frame instead of from

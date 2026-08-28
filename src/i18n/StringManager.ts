@@ -148,9 +148,14 @@ export class StringManager {
     return stringProperties.showMotionDiagramStringProperty;
   }
 
-  /** Label for the optional time annotations on motion-diagram dots. */
-  public getShowMotionDiagramLabelsStringProperty(): ReadOnlyProperty<string> {
-    return stringProperties.showMotionDiagramLabelsStringProperty;
+  /** Label for optional sample points overlaid on the graph. */
+  public getShowGraphPointsStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.showGraphPointsStringProperty;
+  }
+
+  /** Label for optional velocity arrows on motion-diagram points. */
+  public getShowVelocityVectorsStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.showVelocityVectorsStringProperty;
   }
 
   /** Labels for the Position / Velocity toggle. */

@@ -12,7 +12,10 @@
  */
 
 import { DERIVATIVE_WINDOW_SAMPLES } from "../../MotionMatchConstants.js";
-import { differentiate, type Sample } from "./motionMath.js";
+import { differentiateTrailing, type Sample } from "./motionMath.js";
+
+/** Five 20 Hz samples span the requested 200 ms smoothing interval. */
+const SMOOTHING_WINDOW_SAMPLES = 5;
 
 export class Trace {
   /** Position samples, in metres, in recording order. */
@@ -20,16 +23,25 @@ export class Trace {
 
   /** Cached velocity series; invalidated whenever a sample is added. */
   private velocityCache: Sample[] | null = null;
+  /** Causal smoothed values, finalized as each raw sample arrives. */
+  private smoothedSamples: Sample[] = [];
 
   /** Records one position sample. */
   public add(time: number, position: number): void {
     this.samples.push({ time: time, value: position });
+    const smoothingStart = Math.max(0, this.samples.length - SMOOTHING_WINDOW_SAMPLES);
+    const smoothingWindow = this.samples.slice(smoothingStart);
+    this.smoothedSamples.push({
+      time: time,
+      value: smoothingWindow.reduce((sum, sample) => sum + sample.value, 0) / smoothingWindow.length,
+    });
     this.velocityCache = null;
   }
 
   /** Discards the run. */
   public clear(): void {
     this.samples = [];
+    this.smoothedSamples = [];
     this.velocityCache = null;
   }
 
@@ -47,12 +59,17 @@ export class Trace {
   }
 
   /**
-   * The velocity series, differentiated from position with a centered window.
-   * Recomputed lazily, so appending a sample during a run stays O(1).
+   * Position samples with a short trailing average. Each value is finalized
+   * when recorded, so later samples cannot alter the displayed past.
    */
+  public getSmoothedPositionSamples(): readonly Sample[] {
+    return this.smoothedSamples;
+  }
+
+  /** The causal velocity series, recomputed lazily from finalized values. */
   public getVelocitySamples(): readonly Sample[] {
     if (this.velocityCache === null) {
-      this.velocityCache = differentiate(this.samples, DERIVATIVE_WINDOW_SAMPLES);
+      this.velocityCache = differentiateTrailing(this.getSmoothedPositionSamples(), DERIVATIVE_WINDOW_SAMPLES);
     }
     return this.velocityCache;
   }

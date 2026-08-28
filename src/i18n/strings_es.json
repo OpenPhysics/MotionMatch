@@ -19,7 +19,8 @@
   "chooseCurve": "Elegir una curva",
   "motionDiagram": "Diagrama de movimiento · puntos cada 0,5 s",
   "showMotionDiagram": "Mostrar diagrama de movimiento",
-  "showMotionDiagramLabels": "Mostrar etiquetas",
+  "showGraphPoints": "Mostrar puntos en el gráfico",
+  "showVelocityVectors": "Mostrar vectores de velocidad",
   "graphMode": {
     "position": "Posición",
     "velocity": "Velocidad"

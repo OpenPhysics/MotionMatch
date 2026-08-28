@@ -16,7 +16,7 @@
  * off.
  */
 
-import { Multilink } from "scenerystack/axon";
+import { Multilink, type TReadOnlyProperty } from "scenerystack/axon";
 import {
   AxisLine,
   ChartRectangle,
@@ -29,7 +29,7 @@ import {
 import { Range, Vector2 } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Orientation } from "scenerystack/phet-core";
-import { Node, Path, Text } from "scenerystack/scenery";
+import { Circle, Node, Path, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { StringManager } from "../../i18n/StringManager.js";
 import MotionMatchColors from "../../MotionMatchColors.js";
@@ -74,7 +74,7 @@ export class MatchChartNode extends Node {
   private readonly yGridLines: GridLineSet;
   private readonly disposeMatchChartNode: () => void;
 
-  public constructor(model: MotionMatchModel) {
+  public constructor(model: MotionMatchModel, showGraphPointsProperty: TReadOnlyProperty<boolean>) {
     super();
     this.model = model;
 
@@ -158,6 +158,8 @@ export class MatchChartNode extends Node {
       lineWidth: 2.5,
     });
 
+    const graphPoints = new Node({ visibleProperty: showGraphPointsProperty });
+
     const plotContainer = new Node({
       x: LEFT_INSET,
       y: TOP_INSET,
@@ -170,7 +172,7 @@ export class MatchChartNode extends Node {
         // of drawing outside the chart and stretching the surrounding layout.
         new Node({
           clipArea: Shape.bounds(chartRectangle.bounds),
-          children: [this.bandPath, this.targetPlot, this.tracePlot],
+          children: [this.bandPath, this.targetPlot, this.tracePlot, graphPoints],
         }),
         this.yTickMarks,
         this.yTickLabels,
@@ -202,6 +204,10 @@ export class MatchChartNode extends Node {
     xAxisLabel.boundsProperty.link(layOutLabels);
     yAxisLabel.boundsProperty.link(layOutLabels);
 
+    let refreshGraphPoints: () => void = () => {
+      // Installed below after the chart-mode listeners are configured.
+    };
+
     // The y axis, the target and the band all follow the mode, and the target
     // also follows the profile. One multilink keeps them from drifting apart.
     const modeMultilink = Multilink.multilink([model.graphModeProperty, model.profileProperty], (mode) => {
@@ -218,10 +224,34 @@ export class MatchChartNode extends Node {
 
       this.updateTarget();
       this.updateTrace();
+      refreshGraphPoints();
     });
 
-    const traceListener = () => this.updateTrace();
+    const traceListener = () => {
+      this.updateTrace();
+      refreshGraphPoints();
+    };
     model.traceChangedProperty.link(traceListener);
+
+    refreshGraphPoints = () => {
+      graphPoints.removeAllChildren();
+      // Match the motion diagram: one point per second (the model samples
+      // every 0.05 s).
+      const allSamples = [...model.getTraceSamples()];
+      const lastSample = allSamples.at(-1);
+      if (lastSample !== undefined && lastSample.time < RUN_DURATION_S) {
+        allSamples.push({ time: RUN_DURATION_S, value: lastSample.value });
+      }
+      const samples = allSamples.filter((_sample, index) => index % 20 === 0);
+      for (const [index, sample] of samples.entries()) {
+        const point = this.chartTransform.modelToViewPosition(new Vector2(sample.time, sample.value));
+        const color = `hsl(${(196 + index * 7) % 360}, 78%, 52%)`;
+        graphPoints.addChild(
+          new Circle(3.5, { center: point, fill: color, stroke: MotionMatchColors.chartBackgroundColorProperty }),
+        );
+      }
+    };
+    model.graphModeProperty.link(refreshGraphPoints);
 
     // Widening the tolerance in Preferences has to widen the band on screen, or
     // the drawn rule and the scoring rule would disagree.
@@ -232,6 +262,7 @@ export class MatchChartNode extends Node {
       modeMultilink.dispose();
       model.traceChangedProperty.unlink(traceListener);
       model.positionToleranceProperty?.unlink(toleranceListener);
+      model.graphModeProperty.unlink(refreshGraphPoints);
       xAxisLabel.boundsProperty.unlink(layOutLabels);
       yAxisLabel.boundsProperty.unlink(layOutLabels);
     };

@@ -173,14 +173,17 @@ export class MotionMatchModel implements TModel {
       : this.trace.getVelocitySamples();
   }
 
-  /** Official position samples for the equal-time-dot motion diagram. */
+  /** Smoothed position samples for the equal-time-dot motion diagram. */
   public getPositionTraceSamples(): readonly Sample[] {
-    return this.trace.getPositionSamples();
+    return this.trace.getSmoothedPositionSamples();
   }
 
   /** Preview plus official samples, for drawing only. Preview samples are never scored. */
   public getDisplayTraceSamples(): readonly Sample[] {
-    const positionSamples = [...this.previewTrace.getPositionSamples(), ...this.trace.getPositionSamples()];
+    const positionSamples = [
+      ...this.previewTrace.getSmoothedPositionSamples(),
+      ...this.trace.getSmoothedPositionSamples(),
+    ];
     if (this.graphModeProperty.value === GraphMode.POSITION) {
       return positionSamples;
     }

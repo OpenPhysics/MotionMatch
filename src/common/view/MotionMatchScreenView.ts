@@ -52,7 +52,8 @@ export class MotionMatchScreenView extends ScreenView {
   private readonly chartNode: MatchChartNode;
   private readonly model: MotionMatchModel;
   private readonly showMotionDiagramProperty: BooleanProperty;
-  private readonly showMotionDiagramLabelsProperty: BooleanProperty;
+  private readonly showGraphPointsProperty: BooleanProperty;
+  private readonly showVelocityVectorsProperty: BooleanProperty;
   private readonly writablePositionProperty: NumberProperty | undefined;
   private readonly disposeMotionMatchScreenView: () => void;
 
@@ -65,6 +66,8 @@ export class MotionMatchScreenView extends ScreenView {
     this.writablePositionProperty = providedOptions.writablePositionProperty;
     const strings = StringManager.getInstance();
     const legendStrings = strings.getLegendStrings();
+    const showGraphPointsProperty = new BooleanProperty(false);
+    const showVelocityVectorsProperty = new BooleanProperty(false);
 
     this.addChild(
       new Rectangle(0, 0, this.layoutBounds.width, this.layoutBounds.height, {
@@ -76,7 +79,7 @@ export class MotionMatchScreenView extends ScreenView {
     // its own layer created before the controls that fill it.
     const comboBoxListParent = new Node();
 
-    const chartNode = new MatchChartNode(model);
+    const chartNode = new MatchChartNode(model, showGraphPointsProperty);
     chartNode.left = SCREEN_VIEW_MARGIN;
     chartNode.top = SCREEN_VIEW_MARGIN;
     this.chartNode = chartNode;
@@ -133,14 +136,14 @@ export class MotionMatchScreenView extends ScreenView {
     }
 
     const showMotionDiagramProperty = new BooleanProperty(false);
-    const showMotionDiagramLabelsProperty = new BooleanProperty(false);
     this.showMotionDiagramProperty = showMotionDiagramProperty;
-    this.showMotionDiagramLabelsProperty = showMotionDiagramLabelsProperty;
+    this.showGraphPointsProperty = showGraphPointsProperty;
+    this.showVelocityVectorsProperty = showVelocityVectorsProperty;
     const motionDiagramNode = new MotionDiagramNode(
       model,
       CHART_WIDTH,
       showMotionDiagramProperty,
-      showMotionDiagramLabelsProperty,
+      showVelocityVectorsProperty,
     );
     motionDiagramNode.left = SCREEN_VIEW_MARGIN;
     motionDiagramNode.top = playAreaNode.bottom + 10;
@@ -168,14 +171,26 @@ export class MotionMatchScreenView extends ScreenView {
       { accessibleName: strings.getShowMotionDiagramStringProperty() },
     );
     const motionDiagramLabelsCheckbox = new Checkbox(
-      showMotionDiagramLabelsProperty,
-      new Text(strings.getShowMotionDiagramLabelsStringProperty(), {
+      showGraphPointsProperty,
+      new Text(strings.getShowGraphPointsStringProperty(), {
         font: LEGEND_FONT,
         fill: MotionMatchColors.textColorProperty,
         maxWidth: 276,
       }),
       {
-        accessibleName: strings.getShowMotionDiagramLabelsStringProperty(),
+        accessibleName: strings.getShowGraphPointsStringProperty(),
+        enabledProperty: showMotionDiagramProperty,
+      },
+    );
+    const velocityVectorsCheckbox = new Checkbox(
+      showVelocityVectorsProperty,
+      new Text(strings.getShowVelocityVectorsStringProperty(), {
+        font: LEGEND_FONT,
+        fill: MotionMatchColors.textColorProperty,
+        maxWidth: 276,
+      }),
+      {
+        accessibleName: strings.getShowVelocityVectorsStringProperty(),
         enabledProperty: showMotionDiagramProperty,
       },
     );
@@ -189,6 +204,13 @@ export class MotionMatchScreenView extends ScreenView {
           children: [
             new Rectangle(0, 0, 18, 1, { fill: null, stroke: null, pickable: false }),
             motionDiagramLabelsCheckbox,
+          ],
+        }),
+        new HBox({
+          spacing: 6,
+          children: [
+            new Rectangle(0, 0, 18, 1, { fill: null, stroke: null, pickable: false }),
+            velocityVectorsCheckbox,
           ],
         }),
       ],
@@ -256,7 +278,8 @@ export class MotionMatchScreenView extends ScreenView {
     // panels own their listeners and tear them down themselves.
     this.disposeMotionMatchScreenView = () => {
       showMotionDiagramProperty.dispose();
-      showMotionDiagramLabelsProperty.dispose();
+      showGraphPointsProperty.dispose();
+      showVelocityVectorsProperty.dispose();
       if (providedOptions.writablePositionProperty) {
         model.profileProperty.unlink(syncWalkerToTarget);
       }
@@ -281,7 +304,8 @@ export class MotionMatchScreenView extends ScreenView {
   public reset(): void {
     this.chartNode.updateTarget();
     this.showMotionDiagramProperty.reset();
-    this.showMotionDiagramLabelsProperty.reset();
+    this.showGraphPointsProperty.reset();
+    this.showVelocityVectorsProperty.reset();
     if (this.writablePositionProperty) {
       this.writablePositionProperty.value = this.model.profileProperty.value.position(0);
     }

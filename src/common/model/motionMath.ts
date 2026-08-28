@@ -68,3 +68,11 @@ export function differentiate(samples: readonly Sample[], windowSize: number): S
     return { time: sample.time, value: estimateDerivative(samples.slice(start, start + width)) };
   });
 }
+
+/** Causal derivative: each slope uses only the current and preceding samples. */
+export function differentiateTrailing(samples: readonly Sample[], windowSize: number): Sample[] {
+  return samples.map((sample, index) => {
+    const start = Math.max(0, index - windowSize + 1);
+    return { time: sample.time, value: estimateDerivative(samples.slice(start, index + 1)) };
+  });
+}
