@@ -1,50 +1,75 @@
 /**
  * MotionMatchPreferencesNode.ts
  *
- * Custom preferences UI shown in Preferences → Simulation. Controls are bound
- * to MotionMatchPreferencesModel Properties (whose initial values come from
- * motionMatchQueryParameters).
+ * The Preferences → Simulation tab.
+ *
+ * Only two knobs, both aimed at the teacher rather than the student: how
+ * forgiving a match has to be, and whether to show the raw sensor reading while
+ * bringing hardware up.
+ *
+ * Note the text colour: the Preferences dialog is always light, whatever colour
+ * profile the sim is in, so labels here use `controlSurfaceTextColorProperty`
+ * and never `textColorProperty`.
  */
 
-import { Text, VBox } from "scenerystack/scenery";
-import { PhetFont } from "scenerystack/scenery-phet";
+import { Node, Text, VBox } from "scenerystack/scenery";
+import { NumberControl, PhetFont } from "scenerystack/scenery-phet";
 import { Checkbox } from "scenerystack/sun";
 import type { Tandem } from "scenerystack/tandem";
 import { StringManager } from "../i18n/StringManager.js";
 import MotionMatchColors from "../MotionMatchColors.js";
+import { POSITION_TOLERANCE_RANGE_M } from "../MotionMatchConstants.js";
 import MotionMatchNamespace from "../MotionMatchNamespace.js";
 import type { MotionMatchPreferencesModel } from "./MotionMatchPreferencesModel.js";
 
-export class MotionMatchPreferencesNode extends VBox {
-  public constructor(preferencesModel: MotionMatchPreferencesModel, tandem?: Tandem) {
-    const prefStrings = StringManager.getInstance().getPreferences();
+const LABEL_FONT = new PhetFont(14);
+const DESCRIPTION_FONT = new PhetFont(12);
+const CONTENT_WIDTH = 440;
 
-    // The Preferences dialog is always white, so use the dark "light control surface"
-    // colors (readable on white in both default and projector profiles), not textColorProperty
-    // (which is near-white in default mode and would be invisible on the white dialog).
-    const header = new Text(prefStrings.titleStringProperty, {
-      font: new PhetFont({ size: 18, weight: "bold" }),
+export class MotionMatchPreferencesNode extends Node {
+  public constructor(preferences: MotionMatchPreferencesModel, tandem?: Tandem) {
+    const strings = StringManager.getInstance().getPreferences();
+
+    const toleranceControl = new NumberControl(
+      strings.matchToleranceStringProperty,
+      preferences.positionToleranceProperty,
+      POSITION_TOLERANCE_RANGE_M,
+      {
+        delta: 0.05,
+        titleNodeOptions: { font: LABEL_FONT, fill: MotionMatchColors.controlSurfaceTextColorProperty },
+        numberDisplayOptions: { decimalPlaces: 2, textOptions: { font: LABEL_FONT } },
+        sliderOptions: { constrainValue: (value: number) => Math.round(value * 20) / 20 },
+        ...(tandem ? { tandem: tandem.createTandem("toleranceControl") } : {}),
+      },
+    );
+
+    const toleranceDescription = new Text(strings.matchToleranceDescriptionStringProperty, {
+      font: DESCRIPTION_FONT,
       fill: MotionMatchColors.controlSurfaceTextColorProperty,
+      maxWidth: CONTENT_WIDTH,
     });
 
-    const exampleToggleCheckbox = new Checkbox(
-      preferencesModel.exampleToggleProperty,
-      new Text(prefStrings.exampleToggleStringProperty, {
-        font: new PhetFont(14),
+    const diagnosticsCheckbox = new Checkbox(
+      preferences.showDiagnosticsProperty,
+      new Text(strings.showDiagnosticsStringProperty, {
+        font: LABEL_FONT,
         fill: MotionMatchColors.controlSurfaceTextColorProperty,
+        maxWidth: CONTENT_WIDTH - 40,
       }),
       {
-        checkboxColor: MotionMatchColors.controlSurfaceTextColorProperty,
-        checkboxColorBackground: MotionMatchColors.controlSurfaceColorProperty,
-        spacing: 8,
-        ...(tandem && { tandem: tandem.createTandem("exampleToggleCheckbox") }),
+        accessibleName: strings.showDiagnosticsStringProperty,
+        ...(tandem ? { tandem: tandem.createTandem("diagnosticsCheckbox") } : {}),
       },
     );
 
     super({
-      align: "left",
-      spacing: 12,
-      children: [header, exampleToggleCheckbox],
+      children: [
+        new VBox({
+          align: "left",
+          spacing: 12,
+          children: [toleranceControl, toleranceDescription, diagnosticsCheckbox],
+        }),
+      ],
     });
   }
 }

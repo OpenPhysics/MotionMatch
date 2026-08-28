@@ -4,32 +4,108 @@
     "simulation": "Simulation",
     "sensor": "Motion Sensor"
   },
+  "profiles": {
+    "a": "Walk away at a steady pace",
+    "b": "Walk toward the sensor at a steady pace",
+    "c": "Stand still",
+    "d": "Walk away slowly, then quickly",
+    "e": "Start still, then speed up",
+    "f": "Wait, walk away, then stop",
+    "g": "Wait, hurry away, stop, then drift back",
+    "h": "Walk away, turn around, come back",
+    "i": "Walk back and forth"
+  },
+  "profileLabelPattern": "{{letter}} — {{description}}",
+  "chooseCurve": "Choose a curve",
+  "graphMode": {
+    "position": "Position",
+    "velocity": "Velocity"
+  },
+  "axes": {
+    "time": "Time (s)",
+    "position": "Position (m)",
+    "velocity": "Velocity (m/s)"
+  },
+  "legend": {
+    "target": "Target",
+    "yours": "You"
+  },
+  "run": {
+    "start": "Start",
+    "stop": "Stop",
+    "tryAgain": "Try Again",
+    "getReady": "Get ready…",
+    "scorePattern": "Match: {{score}}%",
+    "connectFirst": "Connect a sensor to start"
+  },
+  "sensor": {
+    "connect": "Connect Sensor",
+    "disconnect": "Disconnect",
+    "statusDisconnected": "Disconnected",
+    "statusConnecting": "Connecting…",
+    "statusConnected": "Connected",
+    "statusError": "Connection problem",
+    "lostConnection": "The sensor disconnected.",
+    "unavailableInsecure": "Web Bluetooth needs a secure page. Open this simulation over HTTPS, or on localhost.",
+    "unavailableBrowser": "This browser cannot connect to the sensor. Use Chrome, Edge, or Opera.",
+    "rawPositionPattern": "Sensor: {{position}} m"
+  },
+  "preferences": {
+    "title": "Simulation",
+    "matchTolerance": "Match tolerance (m)",
+    "matchToleranceDescription": "How far from the target curve still counts as a match. The band drawn around the curve grows and shrinks with this value.",
+    "showDiagnostics": "Show sensor diagnostics"
+  },
   "a11y": {
     "simulation": {
       "screenSummary": {
-        "playArea": "The play area shows the main simulation content.",
-        "controlArea": "The control area has a Reset All button that returns the simulation to its starting state.",
-        "interactionHint": "Explore the simulation by interacting with its controls."
+        "playArea": "The play area shows a track with a walker you can drag, and a graph with the target curve you are trying to match.",
+        "controlArea": "The control area has the curve chooser, the position and velocity graph toggle, the run button, and a Reset All button.",
+        "interactionHint": "Choose a curve, press Start, then drag the walker so your graph follows the target."
       },
-      "currentDetails": "The simulation is in its initial state.",
+      "currentDetails": {
+        "ready": "Curve {{letter}}, {{mode}} graph. Ready to start.",
+        "countdown": "Starting in {{count}}.",
+        "recording": "Recording. {{time}} seconds of {{total}}.",
+        "scored": "Run finished. You matched curve {{letter}} {{score}} percent of the time.",
+        "waitingForSensor": "Waiting for a motion sensor to be connected."
+      },
       "controls": {
-        "exampleControl": "Example control"
+        "walker": "Walker",
+        "walkerHelp": "Move left and right to change your distance from the sensor.",
+        "profileComboBox": "Target curve",
+        "profileComboBoxHelp": "Pick which of the nine motion graphs to match.",
+        "graphModeRadio": "Graph type",
+        "startButton": "Start the run",
+        "stopButton": "Stop the run",
+        "tryAgainButton": "Clear the run and try again"
       }
     },
     "sensor": {
       "screenSummary": {
-        "playArea": "The play area shows the main simulation content.",
-        "controlArea": "The control area has a Reset All button that returns the simulation to its starting state.",
-        "interactionHint": "Explore the simulation by interacting with its controls."
+        "playArea": "The play area shows a track with a marker that follows the motion sensor, and a graph with the target curve you are trying to match.",
+        "controlArea": "The control area has the curve chooser, the position and velocity graph toggle, the run button, and a Reset All button.",
+        "interactionHint": "Connect the sensor, choose a curve, press Start, then walk so your graph follows the target."
       },
-      "currentDetails": "The simulation is in its initial state.",
+      "currentDetails": {
+        "ready": "Curve {{letter}}, {{mode}} graph. Ready to start.",
+        "countdown": "Starting in {{count}}.",
+        "recording": "Recording. {{time}} seconds of {{total}}.",
+        "scored": "Run finished. You matched curve {{letter}} {{score}} percent of the time.",
+        "waitingForSensor": "Waiting for a motion sensor to be connected."
+      },
       "controls": {
-        "exampleControl": "Example control"
+        "walker": "Sensor reading",
+        "walkerHelp": "This marker follows the motion sensor. Walk toward or away from the sensor to move it.",
+        "connectButton": "Connect to a PASCO wireless motion sensor",
+        "disconnectButton": "Disconnect the motion sensor",
+        "profileComboBox": "Target curve",
+        "profileComboBoxHelp": "Pick which of the nine motion graphs to match.",
+        "graphModeRadio": "Graph type",
+        "startButton": "Start the run",
+        "stopButton": "Stop the run",
+        "tryAgainButton": "Clear the run and try again"
       }
     }
-  },
-  "preferences": {
-    "title": "Simulation",
-    "exampleToggle": "Example Toggle"
   }
 }

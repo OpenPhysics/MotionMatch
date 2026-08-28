@@ -1,41 +1,47 @@
 /**
  * MotionSensorScreen.ts
  *
- * The top-level Screen component. It wires together the model and view
- * factories and passes screen-level options (name, background color, tandem)
- * to the parent Screen class.
+ * The Motion Sensor screen: match the target curve by walking in front of a
+ * PASCO Wireless Motion Sensor.
  *
- * Registered in the screens array in src/main.ts. Its home-screen and navigation-bar
- * icons come from createMotionSensorIcon() in src/common/MotionMatchScreenIcons.ts
- * (see doc/multi-screen.md).
+ * Same view, same curves, same scoring as the Simulation screen — it is handed
+ * a sensor source instead of a writable position, which adds the connection
+ * panel and makes the walker follow the hardware.
  */
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
-import type { ScreenOptions } from "scenerystack/sim";
-import { Screen } from "scenerystack/sim";
+import { Screen, type ScreenOptions } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createMotionSensorIcon } from "../common/MotionMatchScreenIcons.js";
+import { MotionMatchKeyboardHelpContent } from "../common/view/MotionMatchKeyboardHelpContent.js";
+import { MotionMatchScreenView } from "../common/view/MotionMatchScreenView.js";
+import { StringManager } from "../i18n/StringManager.js";
 import MotionMatchColors from "../MotionMatchColors.js";
+import type { MotionMatchPreferencesModel } from "../preferences/MotionMatchPreferencesModel.js";
 import { MotionSensorModel } from "./model/MotionSensorModel.js";
-import { MotionSensorKeyboardHelpContent } from "./view/MotionSensorKeyboardHelpContent.js";
-import { MotionSensorScreenView } from "./view/MotionSensorScreenView.js";
+import { MotionSensorScreenSummaryContent } from "./view/MotionSensorScreenSummaryContent.js";
 
 // Require tandem to be explicit — accidental omission would break PhET-iO.
 type MotionSensorScreenOptions = ScreenOptions & { tandem: Tandem };
 
-export class MotionSensorScreen extends Screen<MotionSensorModel, MotionSensorScreenView> {
-  public constructor(options: MotionSensorScreenOptions) {
+export class MotionSensorScreen extends Screen<MotionSensorModel, MotionMatchScreenView> {
+  public constructor(preferences: MotionMatchPreferencesModel, options: MotionSensorScreenOptions) {
     super(
-      // Model factory — called once when the screen is first shown
-      () => new MotionSensorModel(),
-      // View factory — receives the model instance
-      (model) =>
-        new MotionSensorScreenView(model, {
+      () => new MotionSensorModel(preferences),
+      (model) => {
+        const a11y = StringManager.getInstance().getMotionSensorA11yStrings();
+        return new MotionMatchScreenView(model, {
+          a11y: a11y,
+          sensorA11y: a11y,
+          sensorSource: model.sensorSource,
+          showDiagnosticsProperty: preferences.showDiagnosticsProperty,
+          screenSummaryContent: new MotionSensorScreenSummaryContent(model),
           tandem: options.tandem.createTandem("view"),
-        }),
+        });
+      },
       optionize<MotionSensorScreenOptions, EmptySelfOptions, ScreenOptions>()(
         {
           backgroundColorProperty: MotionMatchColors.backgroundColorProperty,
-          createKeyboardHelpNode: () => new MotionSensorKeyboardHelpContent(),
+          createKeyboardHelpNode: () => new MotionMatchKeyboardHelpContent(),
           homeScreenIcon: createMotionSensorIcon(),
           navigationBarIcon: createMotionSensorIcon(),
         },

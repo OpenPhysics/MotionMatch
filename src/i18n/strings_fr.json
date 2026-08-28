@@ -1,35 +1,111 @@
 {
-  "title": "Motion Match",
+  "title": "Match du mouvement",
   "screens": {
     "simulation": "Simulation",
-    "sensor": "Motion Sensor"
+    "sensor": "Capteur de mouvement"
+  },
+  "profiles": {
+    "a": "S'éloigner à vitesse constante",
+    "b": "S'approcher du capteur à vitesse constante",
+    "c": "Rester immobile",
+    "d": "S'éloigner lentement, puis rapidement",
+    "e": "Partir de l'arrêt, puis accélérer",
+    "f": "Attendre, s'éloigner, puis s'arrêter",
+    "g": "Attendre, s'éloigner vite, s'arrêter, puis revenir lentement",
+    "h": "S'éloigner, faire demi-tour, revenir",
+    "i": "Faire des allers-retours"
+  },
+  "profileLabelPattern": "{{letter}} — {{description}}",
+  "chooseCurve": "Choisir une courbe",
+  "graphMode": {
+    "position": "Position",
+    "velocity": "Vitesse"
+  },
+  "axes": {
+    "time": "Temps (s)",
+    "position": "Position (m)",
+    "velocity": "Vitesse (m/s)"
+  },
+  "legend": {
+    "target": "Cible",
+    "yours": "Vous"
+  },
+  "run": {
+    "start": "Démarrer",
+    "stop": "Arrêter",
+    "tryAgain": "Réessayer",
+    "getReady": "Préparez-vous…",
+    "scorePattern": "Correspondance : {{score}} %",
+    "connectFirst": "Connectez un capteur pour démarrer"
+  },
+  "sensor": {
+    "connect": "Connecter le capteur",
+    "disconnect": "Déconnecter",
+    "statusDisconnected": "Déconnecté",
+    "statusConnecting": "Connexion…",
+    "statusConnected": "Connecté",
+    "statusError": "Problème de connexion",
+    "lostConnection": "Le capteur s'est déconnecté.",
+    "unavailableInsecure": "Web Bluetooth exige une page sécurisée. Ouvrez cette simulation en HTTPS ou sur localhost.",
+    "unavailableBrowser": "Ce navigateur ne peut pas se connecter au capteur. Utilisez Chrome, Edge ou Opera.",
+    "rawPositionPattern": "Capteur : {{position}} m"
+  },
+  "preferences": {
+    "title": "Simulation",
+    "matchTolerance": "Tolérance de correspondance (m)",
+    "matchToleranceDescription": "Écart maximal à la courbe cible encore considéré comme une correspondance. La bande dessinée autour de la courbe suit cette valeur.",
+    "showDiagnostics": "Afficher le diagnostic du capteur"
   },
   "a11y": {
     "simulation": {
       "screenSummary": {
-        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
-        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
-        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+        "playArea": "La zone de jeu montre une piste avec un marcheur que vous pouvez déplacer, et un graphique avec la courbe cible à reproduire.",
+        "controlArea": "La zone de commande contient le sélecteur de courbe, le basculement position/vitesse, le bouton d'essai et un bouton Tout réinitialiser.",
+        "interactionHint": "Choisissez une courbe, appuyez sur Démarrer, puis déplacez le marcheur pour que votre graphique suive la cible."
       },
-      "currentDetails": "La simulation est dans son état initial.",
+      "currentDetails": {
+        "ready": "Courbe {{letter}}, graphique de {{mode}}. Prêt à démarrer.",
+        "countdown": "Départ dans {{count}}.",
+        "recording": "Enregistrement. {{time}} secondes sur {{total}}.",
+        "scored": "Essai terminé. Vous avez suivi la courbe {{letter}} {{score}} pour cent du temps.",
+        "waitingForSensor": "En attente de la connexion d'un capteur de mouvement."
+      },
       "controls": {
-        "exampleControl": "Contrôle d'exemple"
+        "walker": "Marcheur",
+        "walkerHelp": "Déplacez-vous à gauche et à droite pour changer votre distance au capteur.",
+        "profileComboBox": "Courbe cible",
+        "profileComboBoxHelp": "Choisissez lequel des neuf graphiques de mouvement reproduire.",
+        "graphModeRadio": "Type de graphique",
+        "startButton": "Démarrer l'essai",
+        "stopButton": "Arrêter l'essai",
+        "tryAgainButton": "Effacer l'essai et réessayer"
       }
     },
     "sensor": {
       "screenSummary": {
-        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
-        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
-        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+        "playArea": "La zone de jeu montre une piste avec un repère qui suit le capteur de mouvement, et un graphique avec la courbe cible à reproduire.",
+        "controlArea": "La zone de commande contient le sélecteur de courbe, le basculement position/vitesse, le bouton d'essai et un bouton Tout réinitialiser.",
+        "interactionHint": "Connectez le capteur, choisissez une courbe, appuyez sur Démarrer, puis marchez pour que votre graphique suive la cible."
       },
-      "currentDetails": "La simulation est dans son état initial.",
+      "currentDetails": {
+        "ready": "Courbe {{letter}}, graphique de {{mode}}. Prêt à démarrer.",
+        "countdown": "Départ dans {{count}}.",
+        "recording": "Enregistrement. {{time}} secondes sur {{total}}.",
+        "scored": "Essai terminé. Vous avez suivi la courbe {{letter}} {{score}} pour cent du temps.",
+        "waitingForSensor": "En attente de la connexion d'un capteur de mouvement."
+      },
       "controls": {
-        "exampleControl": "Contrôle d'exemple"
+        "walker": "Lecture du capteur",
+        "walkerHelp": "Ce repère suit le capteur de mouvement. Approchez-vous ou éloignez-vous du capteur pour le déplacer.",
+        "connectButton": "Se connecter à un capteur de mouvement sans fil PASCO",
+        "disconnectButton": "Déconnecter le capteur de mouvement",
+        "profileComboBox": "Courbe cible",
+        "profileComboBoxHelp": "Choisissez lequel des neuf graphiques de mouvement reproduire.",
+        "graphModeRadio": "Type de graphique",
+        "startButton": "Démarrer l'essai",
+        "stopButton": "Arrêter l'essai",
+        "tryAgainButton": "Effacer l'essai et réessayer"
       }
     }
-  },
-  "preferences": {
-    "title": "Simulation",
-    "exampleToggle": "Exemple de bascule"
   }
 }

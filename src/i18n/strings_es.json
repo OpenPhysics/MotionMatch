@@ -1,35 +1,111 @@
 {
-  "title": "Motion Match",
+  "title": "Coincidencia de movimiento",
   "screens": {
-    "simulation": "Simulation",
-    "sensor": "Motion Sensor"
+    "simulation": "Simulación",
+    "sensor": "Sensor de movimiento"
+  },
+  "profiles": {
+    "a": "Alejarse a ritmo constante",
+    "b": "Acercarse al sensor a ritmo constante",
+    "c": "Quedarse quieto",
+    "d": "Alejarse despacio y luego rápido",
+    "e": "Empezar quieto y luego acelerar",
+    "f": "Esperar, alejarse y luego parar",
+    "g": "Esperar, alejarse rápido, parar y volver despacio",
+    "h": "Alejarse, dar la vuelta y regresar",
+    "i": "Ir y venir"
+  },
+  "profileLabelPattern": "{{letter}} — {{description}}",
+  "chooseCurve": "Elegir una curva",
+  "graphMode": {
+    "position": "Posición",
+    "velocity": "Velocidad"
+  },
+  "axes": {
+    "time": "Tiempo (s)",
+    "position": "Posición (m)",
+    "velocity": "Velocidad (m/s)"
+  },
+  "legend": {
+    "target": "Objetivo",
+    "yours": "Tú"
+  },
+  "run": {
+    "start": "Iniciar",
+    "stop": "Detener",
+    "tryAgain": "Intentar de nuevo",
+    "getReady": "Prepárate…",
+    "scorePattern": "Coincidencia: {{score}} %",
+    "connectFirst": "Conecta un sensor para empezar"
+  },
+  "sensor": {
+    "connect": "Conectar sensor",
+    "disconnect": "Desconectar",
+    "statusDisconnected": "Desconectado",
+    "statusConnecting": "Conectando…",
+    "statusConnected": "Conectado",
+    "statusError": "Problema de conexión",
+    "lostConnection": "El sensor se desconectó.",
+    "unavailableInsecure": "Web Bluetooth necesita una página segura. Abre esta simulación con HTTPS o en localhost.",
+    "unavailableBrowser": "Este navegador no puede conectarse al sensor. Usa Chrome, Edge u Opera.",
+    "rawPositionPattern": "Sensor: {{position}} m"
+  },
+  "preferences": {
+    "title": "Simulación",
+    "matchTolerance": "Tolerancia de coincidencia (m)",
+    "matchToleranceDescription": "Cuánto puede alejarse de la curva objetivo y seguir contando como coincidencia. La banda dibujada alrededor de la curva cambia con este valor.",
+    "showDiagnostics": "Mostrar diagnóstico del sensor"
   },
   "a11y": {
     "simulation": {
       "screenSummary": {
-        "playArea": "El área de juego muestra el contenido principal de la simulación.",
-        "controlArea": "El área de control tiene un botón Restablecer todo que devuelve la simulación a su estado inicial.",
-        "interactionHint": "Explora la simulación interactuando con sus controles."
+        "playArea": "El área de juego muestra una pista con un caminante que puedes arrastrar y una gráfica con la curva objetivo que debes reproducir.",
+        "controlArea": "El área de control tiene el selector de curva, el conmutador de posición y velocidad, el botón de intento y un botón Reiniciar todo.",
+        "interactionHint": "Elige una curva, pulsa Iniciar y arrastra el caminante para que tu gráfica siga al objetivo."
       },
-      "currentDetails": "La simulación está en su estado inicial.",
+      "currentDetails": {
+        "ready": "Curva {{letter}}, gráfica de {{mode}}. Listo para empezar.",
+        "countdown": "Empieza en {{count}}.",
+        "recording": "Grabando. {{time}} segundos de {{total}}.",
+        "scored": "Intento terminado. Seguiste la curva {{letter}} el {{score}} por ciento del tiempo.",
+        "waitingForSensor": "Esperando a que se conecte un sensor de movimiento."
+      },
       "controls": {
-        "exampleControl": "Control de ejemplo"
+        "walker": "Caminante",
+        "walkerHelp": "Muévete a izquierda y derecha para cambiar tu distancia al sensor.",
+        "profileComboBox": "Curva objetivo",
+        "profileComboBoxHelp": "Elige cuál de las nueve gráficas de movimiento reproducir.",
+        "graphModeRadio": "Tipo de gráfica",
+        "startButton": "Iniciar el intento",
+        "stopButton": "Detener el intento",
+        "tryAgainButton": "Borrar el intento e intentar de nuevo"
       }
     },
     "sensor": {
       "screenSummary": {
-        "playArea": "El área de juego muestra el contenido principal de la simulación.",
-        "controlArea": "El área de control tiene un botón Restablecer todo que devuelve la simulación a su estado inicial.",
-        "interactionHint": "Explora la simulación interactuando con sus controles."
+        "playArea": "El área de juego muestra una pista con un marcador que sigue al sensor de movimiento y una gráfica con la curva objetivo que debes reproducir.",
+        "controlArea": "El área de control tiene el selector de curva, el conmutador de posición y velocidad, el botón de intento y un botón Reiniciar todo.",
+        "interactionHint": "Conecta el sensor, elige una curva, pulsa Iniciar y camina para que tu gráfica siga al objetivo."
       },
-      "currentDetails": "La simulación está en su estado inicial.",
+      "currentDetails": {
+        "ready": "Curva {{letter}}, gráfica de {{mode}}. Listo para empezar.",
+        "countdown": "Empieza en {{count}}.",
+        "recording": "Grabando. {{time}} segundos de {{total}}.",
+        "scored": "Intento terminado. Seguiste la curva {{letter}} el {{score}} por ciento del tiempo.",
+        "waitingForSensor": "Esperando a que se conecte un sensor de movimiento."
+      },
       "controls": {
-        "exampleControl": "Control de ejemplo"
+        "walker": "Lectura del sensor",
+        "walkerHelp": "Este marcador sigue al sensor de movimiento. Acércate o aléjate del sensor para moverlo.",
+        "connectButton": "Conectar a un sensor de movimiento inalámbrico PASCO",
+        "disconnectButton": "Desconectar el sensor de movimiento",
+        "profileComboBox": "Curva objetivo",
+        "profileComboBoxHelp": "Elige cuál de las nueve gráficas de movimiento reproducir.",
+        "graphModeRadio": "Tipo de gráfica",
+        "startButton": "Iniciar el intento",
+        "stopButton": "Detener el intento",
+        "tryAgainButton": "Borrar el intento e intentar de nuevo"
       }
     }
-  },
-  "preferences": {
-    "title": "Simulación",
-    "exampleToggle": "Ejemplo de alternancia"
   }
 }

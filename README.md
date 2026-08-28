@@ -1,68 +1,87 @@
 # Motion Match
 
-[![CI](https://github.com/OpenPhysics/SceneryStackTemplate/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPhysics/SceneryStackTemplate/actions/workflows/ci.yml)
+[![CI](https://github.com/OpenPhysics/MotionMatch/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPhysics/MotionMatch/actions/workflows/ci.yml)
 
-A reusable SceneryStack simulation template for one or N screens, built with
-[SceneryStack](https://scenerystack.org/), Vite 8, TypeScript 7, and Biome 2.
+Match a target position-vs-time or velocity-vs-time graph by moving — with the
+mouse, or by walking in front of a PASCO Wireless Motion Sensor over Web
+Bluetooth. A SceneryStack reimagining of the classic graph-matching activity:
+slope, zero slope, speeding up and slowing down, learned by being the moving
+object.
 
 ## Features
 
-- SceneryStack scaffold with model/view separation (`rename` + `scaffold-screens` for one or N screens)
-- English, Spanish, and French localization via `StringManager`
-- Default and projector color profiles
-- Progressive Web App (installable, offline-capable)
-- Git hooks for Biome pre-commit checks
-- Shared GitHub Actions CI via `OpenPhysics/Baton`
+- **Nine target curves**, lettered A–I after PASCO's own MatchGraph activity
+  sheet, so a class can work from the printed worksheet and the sim together.
+- **Position and velocity in one toggle.** The velocity target is the analytic
+  derivative of the very curve shown in position mode — not a second hand-drawn
+  set — so the relationship between the two graphs is the point, not a
+  coincidence.
+- **A visible scoring rule.** The score is the percentage of your run inside the
+  tolerance band, and that band is drawn on the chart, so you can see exactly
+  which part of your motion cost you.
+- **Two screens, one activity.** Drag a figure with mouse, touch or keyboard;
+  then do the same thing with a real **PASCO Wireless Motion Sensor (PS-3219)**
+  over Web Bluetooth — no driver, no app, no install.
+- **Fully keyboard operable**, with a live screen-reader summary of the curve,
+  the graph type, and the state of the run.
+- Installable and offline-capable (PWA), with a projector-friendly colour
+  profile and English, French and Spanish.
 
 ## Quick Start
 
 ```bash
 npm install
-npm run icons    # generate PNG icons from public/icons/icon.svg
-npm start        # dev server → http://localhost:5173
+npm run icons     # generate PWA icons on a fresh clone
+npm start         # → http://localhost:5173
 ```
+
+To use a real sensor, open the **Motion Sensor** screen in **Chrome, Edge or
+Opera** over HTTPS (or `localhost`), switch the PS-3219 on, and press *Connect
+Sensor*. Stand the sensor at waist height with three or four metres of clear
+floor in front of it. Firefox and Safari have no Web Bluetooth; the screen says
+so instead of offering a button that cannot work.
+
+Add `?showDiagnostics=true` to see the device's measurement list and its raw
+readings — useful when bringing hardware up.
 
 ## Scripts
 
 | Command | Description |
 |---|---|
-| `npm start` / `npm run dev` | Start Vite dev server |
-| `npm run build` | Type-check + production build → `dist/` |
-| `npm run preview` | Preview the production build locally |
-| `npm test` | Run Vitest unit tests (includes memory-leak suite) |
-| `npm run test:fuzz` | Optional Playwright fuzz smoke (`?fuzz&ea`, default 30s) |
-| `npm run test:fuzz -- 90` | Same fuzz for 90 seconds (`--duration 90` or `FUZZ_DURATION=90` also work) |
-| `npm run test:fuzz:quick` | Shorter fuzz smoke (10s) |
-| `npm run test:fuzz:long` | Longer fuzz smoke (300s) |
-| `npm run check` | TypeScript type check |
-| `npm run lint` | Biome lint check |
-| `npm run format` | Auto-format all files |
-| `npm run fix` | Lint + auto-fix |
-| `npm run icons` | Regenerate PNG icons from `public/icons/icon.svg` |
-| `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
-| `npm run scaffold-screens` | Emit N fleet-named screen packages from `simulation/` (`--shared-model` optional) |
-| `npm run release` | `check && lint && build`, then version patch + push tags |
+| `npm start` / `npm run dev` | Vite dev server |
+| `npm run build` | Type-check + production build |
+| `npm run build:single` | Single self-contained `dist/index.html` |
+| `npm run preview` | Preview the production build |
+| `npm run check` | TypeScript across app, scripts and tests |
+| `npm run lint` / `npm run fix` | Biome check / auto-fix |
+| `npm test` | Vitest unit tests |
+| `npm run test:fuzz` | Playwright fuzz smoke (`?fuzz&ea`) |
+| `npm run test:fuzz:quick` | 10-second fuzz |
+| `npm run icons` | Regenerate PWA icons |
 | `npm run clean` | Remove `dist/` |
-
-`npm run release` intentionally skips `npm test` — template tests are samples. Real sims should append `&& npm test` (before the version bump) so a release cannot ship a failing suite.
-
-New sims start at `version: "0.0.0"` in `package.json`. Bump only when cutting a release (for example `npm version patch` and a matching git tag). Keep `name` in kebab-case; it is separate from the SceneryStack sim identifier in `src/init.ts`.
 
 ## Tech Stack
 
-| Tool | Version | Purpose |
+| Tool | Version | Notes |
 |---|---|---|
-| [SceneryStack](https://scenerystack.org/) | ^3.0.0 | Simulation framework |
-| [Vite](https://vitejs.dev/) | ^8 | Build tool + dev server |
-| [TypeScript](https://www.typescriptlang.org/) | ^7 | Type-safe JavaScript |
-| [Biome](https://biomejs.dev/) | ^2.5 | Linting + formatting |
-| [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) | ^1 | PWA + service worker |
+| SceneryStack | ^3.0.0 | Simulation framework; `bamboo` for the chart |
+| pasco-ble | ^0.3.65 | PASCO wireless sensors over Web Bluetooth |
+| Vite | ^8 | Build tool and dev server |
+| TypeScript | ^7 | `erasableSyntaxOnly` — no `enum`, no `namespace` |
+| Biome | ^2.5 | Lint + format |
+| Vitest | ^4 | Unit tests (`happy-dom`) |
+| Playwright | ^1.62 | Fuzz smoke test |
+| vite-plugin-pwa | ^1 | Installable / offline |
+
+Hardware: **PASCO Wireless Motion Sensor PS-3219** (0.15–4 m, 1 mm resolution,
+Bluetooth 5.2). Web Bluetooth requires a Chromium-based browser and a secure
+origin.
 
 ## License
 
-GNU Affero General Public License v3.0 — see [OpenPhysics org license](https://github.com/OpenPhysics/.github/blob/main/LICENSE).
+GNU Affero General Public License v3.0 or later — see the
+[org LICENSE](https://github.com/OpenPhysics/.github/blob/main/LICENSE).
 
 ## Contributing
 
-See [OpenPhysics contributing guidelines](https://github.com/OpenPhysics/.github/blob/main/CONTRIBUTING.md).
-Report bugs via GitHub Issues; use org issue templates.
+See the [org contributing guide](https://github.com/OpenPhysics/.github/blob/main/CONTRIBUTING.md).

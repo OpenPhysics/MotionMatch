@@ -24,7 +24,9 @@
     "verbatimModuleSyntax": true,
     "noUncheckedSideEffectImports": true,
     "erasableSyntaxOnly": true,
-    "types": ["vite/client", "vite-plugin-pwa/client", "web-bluetooth"]
+    "types": ["vite/client", "vite-plugin-pwa/client", "web-bluetooth"],
+    // @/* maps into pasco-ble's dist: that package ships unresolved path aliases (see vite.config.ts).
+    "paths": { "@/*": ["./node_modules/pasco-ble/dist/*"] }
   },
   "include": ["src"]
 }

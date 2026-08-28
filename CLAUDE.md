@@ -1,141 +1,105 @@
 # CLAUDE.md — Motion Match
 
-Sim-specific context for AI assistants. General SceneryStack guidance: [OpenPhysics/.github/CLAUDE.md](https://github.com/OpenPhysics/.github/blob/main/CLAUDE.md).
+Sim-specific context for AI assistants. General SceneryStack guidance:
+[OpenPhysics/.github/CLAUDE.md](https://github.com/OpenPhysics/.github/blob/main/CLAUDE.md).
 
 ## Project
 
-Reusable SceneryStack template (one or N screens) and **canonical accessibility reference** for
-OpenPhysics sims. Prefer `Baton/scripts/create-sim.sh` (or GitHub **Use this template** +
-`npm run rename` + `npm run scaffold-screens`) to fork it. For multi-screen sims, see
-[`doc/multi-screen.md`](doc/multi-screen.md).
+Match a target position-vs-time or velocity-vs-time graph by moving — with the
+mouse on the **Simulation** screen, or in front of a PASCO Wireless Motion
+Sensor (PS-3219) over Web Bluetooth on the **Motion Sensor** screen. An
+independent reimplementation of PASCO's MatchGraph activity.
+
+Architecture and rationale live in [`doc/implementation-notes.md`](doc/implementation-notes.md);
+the profiles, the derivative relationship and the scoring rule are in
+[`doc/model.md`](doc/model.md). Read both before changing model code.
 
 ## Key files
 
 | File | Purpose |
 |---|---|
-| `src/MotionMatchColors.ts` | All `ProfileColorProperty` instances |
-| `src/MotionMatchConstants.ts` | Named numeric constants (layout px, physics SI units) |
-| `src/MotionMatchNamespace.ts` | Namespace for color property names |
-| `src/i18n/StringManager.ts` | Singleton localized string accessor |
-| `src/simulation/SimulationScreen.ts` | Screen wrapper |
-| `src/simulation/model/SimulationModel.ts` | Simulation state and logic |
-| `src/simulation/view/SimulationScreenView.ts` | Visual nodes, layout, `screenSummaryContent` + `pdomOrder` |
-| `src/simulation/view/SimulationScreenSummaryContent.ts` | Accessible screen summary (reference a11y pattern) |
-| `src/simulation/view/SimulationKeyboardHelpContent.ts` | Keyboard-help dialog content |
-| `src/common/MotionMatchPanel.ts` | Pre-themed `Panel` wrapper (uses `MotionMatchColors` automatically) |
-| `src/common/MotionMatchButtonOptions.ts` | Flat button-appearance option bundles + light-control-surface combo-box options |
-| `src/common/TimeModel.ts` | Composable play/pause + elapsed-time model for animated sims |
-| `scripts/generate-icons.ts` | PNG icons from `public/icons/icon.svg` |
-| `scripts/rename-sim.ts` | Sim-level fork/rename (package id + metadata, Colors, Constants, Panel, ButtonOptions, Preferences) |
-| `scripts/scaffold-screens.ts` | Emit N screen packages + wire main/strings/icons |
+| `src/common/model/MotionMatchModel.ts` | The whole activity: run state machine, fixed-rate sampling, scoring |
+| `src/common/model/profiles.ts` | The nine curves A–I |
+| `src/common/model/MotionProfile.ts` | Profile shapes + corner smoothing for velocity targets |
+| `src/common/model/scoring.ts` | Fraction-in-band score (pure) |
+| `src/common/model/motionMath.ts` | Least-squares derivative + windowed differentiator (pure) |
+| `src/common/model/PositionSource.ts` | `TPositionSource` — the seam between the two screens |
+| `src/common/model/MotionSensorSource.ts` | The PASCO link: lazy device, poll loop, never-rejecting connect |
+| `src/common/view/MotionMatchScreenView.ts` | **One** ScreenView, used by both screens |
+| `src/common/view/MatchChartNode.ts` | bamboo chart: target, tolerance band, live trace |
+| `src/common/view/PlayAreaNode.ts` | Track, sensor, walker + drag / keyboard listeners |
+| `src/simulation/`, `src/sensor/` | Thin screen packages; the models are ten lines each |
 
-## Common components
+## The two screens are one view
 
-### MotionMatchPanel
+`SimulationModel` and `MotionSensorModel` differ only in which
+`TPositionSource` they construct, and both screens instantiate the same
+`MotionMatchScreenView`. Two options carry the entire difference:
+`writablePositionProperty` (makes the walker draggable) and `sensorSource`
+(adds the connection panel). **Do not fork the view.** A student should
+recognise the sensor screen instantly, and sameness by construction is the only
+way to guarantee that.
 
-Every control panel and info box in the sim should use `MotionMatchPanel` so that
-default/projector color switching is automatic:
+## Things that will bite
 
-```typescript
-import { MotionMatchPanel } from "../../common/MotionMatchPanel.js";
-const panel = new MotionMatchPanel(content);              // uses MotionMatchColors defaults
-const panel = new MotionMatchPanel(content, { xMargin: 20 }); // override any PanelOption
-```
-
-### TimeModel
-
-For simulations with animation, compose `TimeModel` into your screen model:
-
-```typescript
-import { TimeModel } from "../../common/TimeModel.js";
-
-export class MyModel implements TModel {
-  public readonly timer = new TimeModel();   // starts paused; pass true to auto-play
-
-  public step(dt: number): void {
-    this.timer.step(dt);
-    // use this.timer.timeProperty.value for physics
-  }
-  public reset(): void { this.timer.reset(); /* … */ }
-}
-```
-
-Wire the view to `TimeControlNode` from `scenerystack/scenery-phet` binding on
-`model.timer.isPlayingProperty`.
-
-### MotionMatchButtonOptions
-
-SceneryStack's push/round buttons default to a 3-D/beveled look; every button in the sim
-should be flat instead. Spread these into the relevant options object:
-
-```typescript
-import { FLAT_RESET_ALL_BUTTON_OPTIONS, FLAT_RECTANGULAR_BUTTON_OPTIONS } from "../../common/MotionMatchButtonOptions.js";
-
-const resetAllButton = new ResetAllButton({ ...FLAT_RESET_ALL_BUTTON_OPTIONS, listener: () => {...} });
-const exampleButton = new RectangularPushButton({ ...FLAT_RECTANGULAR_BUTTON_OPTIONS, content, listener });
-```
-
-`FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS` spreads into `TimeControlNode`'s `playPauseStepButtonOptions`;
-`TIME_CONTROL_SPEED_RADIO_OPTIONS` fixes `TimeControlNode`'s speed-radio label color, which
-otherwise defaults to black text on the sim's dark default-mode panels. `MOTION_MATCH_COMBO_BOX_OPTIONS`
-themes a `ComboBox`'s button/list chrome to the light control surface below; pair item labels
-with `LIGHT_SURFACE_TEXT_FILL` (not `MotionMatchColors.textColorProperty`, which is for panel-fill text).
-
-`MotionMatchColors.ts` backs this with a "light control surfaces" section —
-`controlSurfaceColorProperty`, `controlSurfaceDisabledColorProperty`,
-`controlSurfaceTextColorProperty` — identical white/dark-text values in both default and
-projector profiles, so any component that must stay light regardless of theme (combo boxes,
-flat buttons, editable fields) keeps readable contrast automatically.
-
-## Accessibility
-
-This template is the **canonical accessibility reference** for OpenPhysics sims. It ships with
-the three required layers wired up: PDOM names, a `SimulationScreenSummaryContent`, and an explicit
-`pdomOrder` + `SimulationKeyboardHelpContent`. A11y strings live under the `a11y` key in each locale
-JSON, exposed via `StringManager.getSimulationA11yStrings()`. When building a real sim, make
-`currentDetailsContent` a live `DerivedProperty` over model state and add `accessibleName`s to
-every interactive node. Full convention and checklist: [Baton/ACCESSIBILITY.md](https://github.com/OpenPhysics/Baton/blob/main/ACCESSIBILITY.md).
+- **`new PASCOBLEDevice()` throws where Web Bluetooth is missing** (Firefox,
+  Safari, insecure origin, headless). It is built lazily on first connect;
+  constructing it eagerly took the whole sensor screen down for those users.
+  `npm run test:fuzz:quick` is what catches this.
+- **Web Bluetooth needs a user gesture** — everything before `scan()` in
+  `connect()` is synchronous. Do not `await` ahead of it.
+- **`connect()` never rejects.** Outcomes land on Properties. A dismissed picker
+  returns an **empty array** from `pasco-ble`, not a throw, and is not an error.
+- **Never accumulate run time in a float.** Sample times are `index × period`.
+  An earlier version drifted and ended runs a sample early; tests pin it.
+- **`dispose()` must stay idempotent** — axon Properties throw on double
+  dispose, and the memory-leak suite disposes twice on purpose.
+- **`AxisLine` is shown only in velocity mode**; in position mode (0–4 m) it
+  would sit on the bottom border and say nothing.
+- **`ScreenView` throws if you set `pdomOrder` on itself** — it lives on a
+  wrapper `Node`.
+- **Preferences dialog is always light** — use `controlSurfaceTextColorProperty`
+  there, never `textColorProperty`.
+- **`LocalizedString` suffixes every leaf key**: profile `a`'s description is
+  `profiles.aStringProperty`. Getting it wrong renders the literal `undefined`.
 
 ## Compliance carve-outs
 
-A clean fork of this template rarely needs compliance carve-outs — root `MotionMatchConstants.ts`,
-`*Colors.ts`, `*Namespace.ts`, standard screen layout, and full a11y wiring pass Baton's
-compliance check out of the box. Document carve-outs in the forked sim's `CLAUDE.md` only when
-you introduce a deliberate deviation (nested constants, hardcoded interaction fills, etc.).
+### The `@/` alias for pasco-ble — remove when upstream is fixed
+
+`pasco-ble@0.3.65` publishes unresolved `@/…` path aliases in both `dist/*.js`
+and `dist/*.d.ts` with no `imports` map, so the package cannot be imported at
+all without help. `@/*` is mapped to `pasco-ble/dist/*` in **four** places —
+`vite.config.ts`, `vitest.config.ts`, `tsconfig.json`, `tsconfig.test.json`.
+This sim writes no `@/` imports of its own, so nothing collides. Delete all four
+once pascoTS ships a build that rewrites its aliases.
+
+The dependency costs roughly **210 kB gzipped** over a sibling sim, nearly all
+`mathjs` (used by pasco-ble's equation parser). If that becomes unacceptable,
+vendor a client on the `RadioactivityAndStatistics/src/common/hardware/PascoProtocol.ts`
+model — same protocol, different interface/sensor ids (1042/2048) and the
+echo-time → position conversion.
 
 ### `package.json` overrides
 
-JSON cannot carry comments, so the rationale for forced transitive pins lives here. Prefer
-**tilde (`~`) or exact** versions — caret (`^`) lets minors drift under what is meant to be a
-hard pin. Dependabot ignores these three names (see `.github/dependabot.yml`) so it does not
-open PRs that fight the overrides. Revisit when SceneryStack drops or re-pins them upstream.
+Inherited from the template; rationale unchanged (`lodash`, `three`,
+`brace-expansion` pinned for advisories SceneryStack has not yet re-pinned).
+Dependabot ignores those three names.
 
-| Override | Pin | Why |
-|---|---|---|
-| `lodash` | `~4.18.1` | SceneryStack declares `~4.17.12`. Bump clears Dependabot/npm advisories patched in 4.18.x (e.g. GHSA-r5fr-rjxr-66jc, GHSA-f23m-r3pf-42rh). |
-| `three` | `~0.125.2` | SceneryStack declares `^0.104.0`. Floor is 0.125.0 for GHSA-fq6p-x6j3-cmmq (ReDoS). Staying on the 0.125 line avoids a larger API jump; **0.125.x still has open CVEs** (e.g. XSS GHSA-7vvq-7r29-5vg3, fixed only in ≥0.137.0). Remove this override if/when SceneryStack stops depending on `three` or pins a patched line itself. |
-| `brace-expansion` | `~5.0.9` | Transitive via `vite-plugin-pwa` / Workbox. Clears npm audit (originally GHSA-mh99-v99m-4gvg; keep ≥5.0.9 for GHSA-rgw5-rvv9-x895). |
+## Hardware testing
 
-## Testing
+Needs a PS-3219, Chrome/Edge/Opera, and HTTPS or `localhost`. There is no way to
+exercise the transport in CI, which is why everything above it is pure and unit
+tested.
 
-Fleet-standard Vitest layout (keep when forking):
+```bash
+npm start   # then open the Motion Sensor screen
+```
 
-| Path | Purpose |
-|---|---|
-| `vitest.config.ts` | `happy-dom` environment; `setupFiles: ["./tests/setup.ts"]`; `execArgv: ["--expose-gc"]` |
-| `tests/setup.ts` | Canvas / AudioContext mocks + `init({ name: "…" })` before SceneryStack imports |
-| `tests/TimeModel.test.ts` | Sample model unit tests — replace with real physics tests |
-| `tests/memory-leak.test.ts` | WeakRef + `forceGC` dispose regression (fleet pattern) |
-| `tests/fuzz/fuzz.spec.ts` | Optional Playwright fuzz smoke via joist `?fuzz` |
-| `playwright.config.ts` | Chromium project + Vite webServer for fuzz |
-
-- Put unit tests only under root `tests/`, mirroring `src/` (never co-locate or use `__tests__/`).
-- Change the `name` passed to `init()` in `tests/setup.ts` to match `package.json` after `npm run rename`.
-- Run `npm test`. CI runs the suite when a `test` script is present.
-- Expand `memory-leak.test.ts` for any component that adds/removes nodes or links Properties at
-  runtime (see OpticsLab for a deep suite).
-- Optional: `npm run test:fuzz` / `test:fuzz:quick` / `test:fuzz:long` (not part of default CI).
-  Duration is 30s by default; override with `npm run test:fuzz -- 90` or `FUZZ_DURATION=90`.
+`?showDiagnostics=true` prints the device's measurement list and the raw value
+of every measurement each poll — the way to tell a genuine zero reading
+(nothing within 0.15–4 m to echo off) from a device answering nothing at all.
+`?pollIntervalMs=` raises the poll period when debugging a flaky link.
 
 ## Commands
 
@@ -143,81 +107,5 @@ Fleet-standard Vitest layout (keep when forking):
 npm run lint && npm run check && npm run build && npm test
 ```
 
-| Command | Description |
-|---|---|
-| `npm start` / `npm run dev` | Vite dev server |
-| `npm run build` | Type-check + production build |
-| `npm run build:single` | Single-file build mode |
-| `npm run check` | TypeScript (`tsc --noEmit` + scripts project) |
-| `npm run lint` / `npm run fix` | Biome check / auto-fix |
-| `npm test` | Vitest unit tests |
-| `npm run test:fuzz` | Playwright fuzz smoke (`?fuzz&ea`, 30s; `npm run test:fuzz -- 90` to change) |
-| `npm run test:fuzz:quick` | 10s fuzz |
-| `npm run test:fuzz:long` | 300s fuzz |
-| `npm run icons` | Regenerate PWA icons (+ placeholder screenshots) |
-| `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
-| `npm run scaffold-screens` | Emit N screens (`--screens Intro,Lab`) |
-| `npm run release` | `check && lint && build`, then version patch + push tags |
-
-`npm run release` intentionally skips `npm test` — template tests are samples. Real sims should append `&& npm test` before the version bump.
-
-## Customizing a new sim from this template
-
-### Recommended: Baton create-sim
-
-```sh
-Baton/scripts/create-sim.sh --repo Friction --name "Friction" --screens Intro,Lab --shared-model --onboard
-```
-
-### Manual: GitHub template + rename + scaffold
-
-```sh
-npm install
-npm run rename -- --id friction --name "Friction"
-npm run scaffold-screens -- --screens Intro,Lab --shared-model
-# omit --screens for one screen named after the sim; omit --shared-model for independent models
-npm run fix     # required: both scripts reorder imports, which Biome then sorts
-npm run check
-```
-
-`rename` updates package id and metadata, display name, and every sim-level `Sim*`
-(Colors, Constants, Namespace, Panel, ButtonOptions, Preferences, query parameters).
-`scaffold-screens` owns screen folders (fleet naming: `src/intro/`, not `intro-screen/`).
-After both steps no `Sim*` identifier should remain — `grep -rn '\bSim[A-Z_]' src` to confirm.
-
-### Manual checklist (if not using the scripts)
-
-1. **Rename** — replace `motion-match` / `Motion Match` / `Sim` prefix in `init.ts`, `brand.ts`, `package.json` (name, description, keywords, repository.url), Colors/Constants/Namespace/Panel/ButtonOptions/Preferences
-2. **Screens** — run `scaffold-screens` or mirror `simulation/` into kebab folders
-3. **Locale** — add `strings_XX.json`, register in `StringManager`, add locale to `init.ts` `availableLocales`
-4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `vite.config.ts`
-5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property)
-
-## Multi-screen sims
-
-Full guide: [`doc/multi-screen.md`](doc/multi-screen.md)
-
-Summary:
-- Prefer `npm run scaffold-screens -- --screens Intro,Lab` (add `--shared-model` for a root model)
-- Or create a screen folder mirroring `src/simulation/` for each screen (kebab names, no `-screen` suffix)
-- Add screen-name keys to all locale JSON files; nest `a11y` per screen
-- Expose new getters in `StringManager.getScreenNames()` / `get{Screen}A11yStrings()`
-- Shared state: `--shared-model` → `common/model/SharedModel.ts` composed per screen (rename to a domain type)
-- Add `src/common/MotionMatchScreenIcons.ts` with `create{Screen}Icon()` factories; wire `homeScreenIcon` + `navigationBarIcon` on each Screen
-- Register all screens in the `screens` array in `main.ts`
-
-## Using this template beyond a direct copy
-
-| Approach | When to use |
-|---|---|
-| **`Baton/scripts/create-sim.sh`** | Agents / fleet — create repo, rename, scaffold N screens |
-| **GitHub template** ("Use this template") | Humans starting a sim in the browser |
-| `npm run rename` + `scaffold-screens` | Same, after cloning the template |
-| **npm workspace / monorepo** | Managing a suite of sims with shared tooling |
-| **git subtree** for pulling updates | Keeping forks in sync with template improvements |
-
-See `doc/multi-screen.md` → "Using this template beyond a direct copy" for details.
-
-## PWA
-
-After `npm run build`, the sim is installable offline via Workbox (`dist/manifest.webmanifest`).
+`npm run test:fuzz:quick` after any change to the sensor path — it is the only
+check that constructs both screens in a real browser.

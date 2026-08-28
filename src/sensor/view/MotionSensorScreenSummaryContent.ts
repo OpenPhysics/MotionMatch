@@ -1,41 +1,37 @@
 /**
  * MotionSensorScreenSummaryContent.ts
  *
- * The accessible screen summary read by screen readers (SceneryStack's
- * Interactive Description). It appears at the top of the parallel DOM and gives
- * a non-visual user a way to orient themselves and to re-read the simulation's
- * current state at any time.
+ * The accessible screen summary: what is on the screen, what the controls do,
+ * what the run is doing right now, and how to get started.
  *
- * A summary has four regions (all optional, but provide at least the first
- * three in every sim for consistency across OpenPhysics):
- *   - playAreaContent       — what the play area contains
- *   - controlAreaContent    — what the controls do
- *   - currentDetailsContent — a LIVE paragraph describing current state
- *   - interactionHintContent — a short hint on how to get started
- *
- * ── Making "current details" live ─────────────────────────────────────────────
- * The template has no model state, so currentDetails is a static string. In a
- * real sim, build a DerivedProperty over the relevant model Properties and pass
- * it as `currentDetailsContent` so the paragraph updates as the sim runs.
- * See LunarLander/src/.../LunarLanderScreenSummaryContent.ts for the pattern.
- * If that DerivedProperty (or any Multilink) is owned by a short-lived object,
- * dispose it on teardown — see the commented dispose() stub in MotionSensorScreenView.
+ * The "current details" region is live — it names the chosen curve, the graph
+ * type, and the state of the run, so a screen-reader user can re-read where
+ * they are at any moment without replaying anything.
  */
 import { ScreenSummaryContent } from "scenerystack/sim";
+import { createCurrentDetailsProperty } from "../../common/view/currentDetailsProperty.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import type { MotionSensorModel } from "../model/MotionSensorModel.js";
 
 export class MotionSensorScreenSummaryContent extends ScreenSummaryContent {
-  // `model` is unused in the template but kept in the signature so real sims can
-  // derive a live currentDetailsContent from it without changing call sites.
-  public constructor(_model: MotionSensorModel) {
+  private readonly disposeMotionSensorScreenSummaryContent: () => void;
+
+  public constructor(model: MotionSensorModel) {
     const a11y = StringManager.getInstance().getMotionSensorA11yStrings();
+    const currentDetails = createCurrentDetailsProperty(model, a11y);
 
     super({
       playAreaContent: a11y.screenSummary.playAreaStringProperty,
       controlAreaContent: a11y.screenSummary.controlAreaStringProperty,
-      currentDetailsContent: a11y.currentDetailsStringProperty,
+      currentDetailsContent: currentDetails.property,
       interactionHintContent: a11y.screenSummary.interactionHintStringProperty,
     });
+
+    this.disposeMotionSensorScreenSummaryContent = currentDetails.dispose;
+  }
+
+  public override dispose(): void {
+    this.disposeMotionSensorScreenSummaryContent();
+    super.dispose();
   }
 }

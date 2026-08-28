@@ -1,135 +1,152 @@
-# Implementation Notes - Motion Match
+# Implementation notes — Motion Match
 
-Developer-facing notes on the **SceneryStackTemplate** scaffold. **Replace and expand this file when
-forking** to describe your sim's real architecture (see Stern Gerlach or Light Propagation for
-target quality). Until then, this documents what the template provides out of the box.
+Architecture, and the things that will bite.
 
-## Architecture Overview
-
-SceneryStackTemplate is the fleet-canonical starting point for new SceneryStack sims (one or N screens).
-It demonstrates Model–View separation, color profiles, localization, reset behavior, accessibility
-reference wiring, and reusable common components — **without** domain physics.
+## Shape of the sim
 
 ```
-main.ts
-  └─ SimulationScreen             (Screen<SimulationModel, SimulationScreenView>)
-       ├─ SimulationModel          state + logic  (src/simulation/model/)  ← stub: add physics here
-       └─ SimulationScreenView     visuals        (src/simulation/view/)
-            ├─ SimulationScreenSummaryContent     (PDOM overview — reference a11y pattern)
-            └─ SimulationKeyboardHelpContent      (keyboard help dialog)
-
-src/common/
-  ├─ MotionMatchPanel.ts           pre-themed panel (uses MotionMatchColors)
-  ├─ MotionMatchButtonOptions.ts   flat button / combo-box option bundles
-  └─ TimeModel.ts          composable play/pause + elapsed time
-
-src/preferences/
-  ├─ MotionMatchPreferencesModel   sim-specific pref state
-  ├─ MotionMatchPreferencesNode    pref UI in Preferences → Simulation
-  └─ motionMatchQueryParameters    QueryStringMachine declarations
+src/
+  init.ts assert.ts splash.ts brand.ts main.ts   ← bootstrap chain, do not reorder
+  MotionMatchColors.ts MotionMatchConstants.ts MotionMatchNamespace.ts
+  i18n/            StringManager.ts + strings_{en,es,fr}.json
+  preferences/     model, node, motionMatchQueryParameters.ts
+  common/
+    model/         profiles, run state machine, sources, scoring
+    view/          chart, play area, controls — ONE ScreenView for both screens
+  simulation/      SimulationScreen + SimulationModel + summary content
+  sensor/          MotionSensorScreen + MotionSensorModel + summary content
 ```
 
-Data flows Model → View through AXON `Property` objects (`.link()` / `.lazyLink()`). The view never
-integrates physics; the model never imports scenery.
+The two screens are thin. `MotionMatchModel` holds the entire activity;
+`SimulationModel` and `MotionSensorModel` are ten-line subclasses that pick a
+source, and both screens instantiate the **same** `MotionMatchScreenView`. Two
+view options carry the whole difference:
 
-## Forking checklist
+- `writablePositionProperty` — present on the Simulation screen, makes the
+  walker draggable.
+- `sensorSource` — present on the Motion Sensor screen, adds the connection
+  panel and makes the walker follow the hardware.
 
-### Automated rename + scaffold (recommended)
+This is deliberate: a student who has done the mouse version should recognise
+the sensor version instantly, and the only way to guarantee that is for it to be
+literally the same view.
 
-```sh
-npm run rename -- --id my-sim --name "My Simulation"
-npm run scaffold-screens -- --screens Intro,Lab   # or omit --screens for one screen
-npm run check
-```
+## The source abstraction
 
-Or from the workspace: `Baton/scripts/create-sim.sh --repo MySim --name "My Simulation"`.
+`TPositionSource` is the seam. It answers one question — where is the walker
+right now, in metres from the sensor — and the model samples that answer on its
+own fixed clock.
 
-`scripts/rename-sim.ts` updates sim-level identifiers (package id, Colors, Preferences).
-`scripts/scaffold-screens.ts` emits fleet-named screen folders and wires main/strings/icons.
+This differs from `RadioactivityAndStatistics`'s `TCountSource` on purpose. That
+contract exposes a monotonically increasing total so a mismatch between the
+sim's clock and the device's cannot lose events; totals can be differenced over
+any interval. Position is a continuous signal that is **sampled**, not
+accumulated, so latest-value semantics are the right contract here. Copying the
+counting trick would have been the obvious mistake.
 
-### Manual steps (after rename/scaffold or if skipping the scripts)
+`step(dt)` is a no-op on the sensor source, and deliberately so rather than
+unimplemented: the sensor keeps ranging whether or not the sim is stepping, and
+pretending otherwise would make a backgrounded tab look like a stationary
+student.
 
-1. **`doc/model.md`** — educator physics (equations, ranges, simplifications).
-2. **`doc/implementation-notes.md`** — this file, rewritten for your architecture.
-3. **Screen model(s)** — real Properties, `step(dt)`, `reset()`; compose `TimeModel` if animated.
-4. **Screen view(s)** — play area + controls; wire `ResetAllButton` to `model.reset()`.
-5. **`*Colors.ts`** — sim palette (default + projector profiles).
-6. **Locale JSON** — title, strings, `a11y` keys; register locales in `init.ts`.
-7. **`public/icons/icon.svg`** → `npm run icons`; align theme color in `index.html` / vite config.
-8. **`tests/setup.ts`** — `init({ name: … })` must match `package.json` name after rename.
-9. **`CLAUDE.md`** — sim-specific file map and pitfalls for AI assistants.
+## The PASCO link
 
-## Common components (keep when forking)
+The sim depends on [`pasco-ble`](https://github.com/veillette/pascoTS) rather
+than re-implementing the protocol. Unlike the Geiger counter in
+`RadioactivityAndStatistics` — interface 1064, supported by neither open library
+— the Wireless Motion Sensor is interface **1042** → sensor **2048**, fully
+covered, including the echo-time → position equation and the unit tables.
 
-### MotionMatchPanel
+### Three things worth knowing
 
-Every control panel should use `MotionMatchPanel` so projector-mode switching is automatic:
+1. **`new PASCOBLEDevice()` throws where Web Bluetooth is missing.** Firefox,
+   Safari, an insecure origin, a headless test browser. It is therefore
+   constructed lazily, on the first connect attempt — building it in the model
+   constructor took the entire Motion Sensor screen down at creation time for
+   those users instead of showing them the "use Chrome or Edge" message the
+   panel already has. The fuzz test catches this; keep it passing.
 
-```typescript
-import { MotionMatchPanel } from "../../common/MotionMatchPanel.js";
-const panel = new MotionMatchPanel(content);
-const panelWide = new MotionMatchPanel(content, { xMargin: 20 });
-```
+2. **`connect()` never rejects.** Connection outcomes are UI state, not
+   exceptions. The button listener stays synchronous so the browser still sees a
+   user gesture, and every outcome lands on `connectionStateProperty` /
+   `errorMessageProperty`. A dismissed device picker comes back from
+   `pasco-ble` as an **empty array**, not a throw, and returns to DISCONNECTED
+   with no error — cancelling is not failing.
 
-### TimeModel
+3. **Polling, not streaming.** `readData` is one BLE round trip. The poll loop
+   is re-entrancy guarded and tolerates `MAXIMUM_CONSECUTIVE_FAILURES` dropped
+   reads before declaring an error; skipping a tick is harmless because the
+   model samples the latest value.
 
-Compose into your screen model for animation (do not subclass `TimeModel`):
+### The `@/` alias workaround — remove when upstream is fixed
 
-```typescript
-export class MyModel implements TModel {
-  public readonly timer = new TimeModel();  // pass true to auto-play on startup
+`pasco-ble@0.3.65` ships **unresolved `@/…` path aliases in both its published
+`dist/*.js` and `dist/*.d.ts`**, and declares no `imports` map to resolve them.
+Without help the package cannot be imported at all: Node, esbuild and Rollup all
+fail with `Cannot find package '@/utils'`, and TypeScript silently degrades
+`PASCOBLEDevice` to a class with no `TypedEventEmitter` base.
 
-  public step(dt: number): void {
-    this.timer.step(dt);
-    // physics uses this.timer.timeProperty.value
-  }
-  public reset(): void { this.timer.reset(); /* restore initial state */ }
-}
-```
+Every alias in that package is rooted at its own `dist/`, so the sim maps `@/*`
+there in **four** places:
 
-Wire `TimeControlNode` to `model.timer.isPlayingProperty` in the view.
-
-### MotionMatchButtonOptions
-
-Spread flat button options into every push/round button and `TimeControlNode` (see `CLAUDE.md`).
-Use `MOTION_MATCH_COMBO_BOX_OPTIONS` + `LIGHT_SURFACE_TEXT_FILL` for light control surfaces on dark panels.
-
-## Accessibility (reference implementation)
-
-The template is the **canonical OpenPhysics a11y reference**:
-
-- PDOM `accessibleName` on interactive nodes (prefer live `StringProperty`s).
-- `SimulationScreenSummaryContent` with a live `currentDetailsContent` `DerivedProperty` over model state.
-- Explicit `pdomOrder` + `SimulationKeyboardHelpContent`.
-- Strings under `a11y` in locale JSON → `StringManager.getSimulationA11yStrings()`.
-
-Full checklist: [Baton/ACCESSIBILITY.md](https://github.com/OpenPhysics/Baton/blob/main/ACCESSIBILITY.md).
-
-## Testing (fleet layout — keep when forking)
-
-| Path | Purpose |
+| File | What it does |
 |---|---|
-| `vitest.config.ts` | `happy-dom`; `setupFiles: ["./tests/setup.ts"]`; `execArgv: ["--expose-gc"]` |
-| `tests/setup.ts` | Canvas/AudioContext mocks + `init()` before SceneryStack imports |
-| `tests/TimeModel.test.ts` | **Replace** with real model/physics tests mirroring `src/` |
-| `tests/memory-leak.test.ts` | WeakRef + `forceGC` dispose regression |
-| `tests/fuzz/fuzz.spec.ts` | Optional Playwright smoke via `?fuzz` |
+| `vite.config.ts` | `resolve.alias` for dev server and build |
+| `vitest.config.ts` | the same, for unit tests |
+| `tsconfig.json` | `paths`, so `npm run check` resolves the typings |
+| `tsconfig.test.json` | the same, for the test project |
 
-Run `npm test`. Expand `memory-leak.test.ts` when adding runtime-created nodes or Property links.
+This sim never writes `@/` imports of its own, so the alias collides with
+nothing. **Delete all four** once pascoTS publishes a build that rewrites its
+aliases (tsc-alias, or a bundler). Nothing else depends on it.
 
-## Multi-screen simulations
+The dependency also costs about **210 kB gzipped** over a sibling sim, almost
+all of it `mathjs`, which `pasco-ble` uses for its equation parser. If that ever
+becomes unacceptable, the fallback is a vendored client on the
+`RadioactivityAndStatistics/src/common/hardware/PascoProtocol.ts` model: the
+protocol is identical, only the interface/sensor ids and the echo-time
+conversion change.
 
-Default is single-screen. To add screens, see **`doc/multi-screen.md`**: per-screen folders mirroring
-`src/simulation/`, `StringManager` screen-name getters, optional shared root model, a shared
-`src/common/MotionMatchScreenIcons.ts` module (`create{Screen}Icon()` factories wired as
-`homeScreenIcon` / `navigationBarIcon`), and register all screens in `main.ts`.
+## Things that will bite
 
-## PWA
+- **Web Bluetooth needs a user gesture.** Everything before `scan()` in
+  `connect()` is synchronous for that reason. Do not `await` anything ahead of it.
+- **Do not accumulate run time in a float.** Sample times come from an integer
+  index times the period. An earlier version added 0.05 repeatedly and ended
+  runs one sample early; the tests pin this.
+- **`dispose()` must be idempotent.** Axon Properties throw when disposed twice,
+  and the fleet memory-leak suite disposes twice on purpose. `MotionMatchModel`
+  guards with an `isDisposed` flag.
+- **`AxisLine` is hidden in position mode.** The position axis runs 0–4 m, so a
+  line at model zero would sit on the bottom border and say nothing. It is shown
+  only in velocity mode, where v = 0 separates moving away from coming back.
+  (The `RadioactivityAndStatistics` warning about `AxisLine` inflating bounds
+  applies to autoscaling charts; this one has a fixed range.)
+- **`ScreenView` throws if you set `pdomOrder` on itself.** The traversal order
+  lives on a wrapper `Node` child.
+- **The Preferences dialog is always light**, whatever colour profile the sim is
+  in. Labels there use `controlSurfaceTextColorProperty`, never
+  `textColorProperty`.
+- **`LocalizedString` suffixes every leaf key.** Profile `a`'s description is
+  `profiles.aStringProperty`, not `profiles.a`. Getting this wrong renders the
+  literal string `undefined` rather than failing.
 
-After `npm run build`, the sim is installable offline via Workbox (`dist/manifest.webmanifest`).
+## Query parameters
 
-## Known template stubs (remove when forking)
+| Parameter | Default | Purpose |
+|---|---|---|
+| `?matchTolerance=` | 0.25 | Half-width of the position match band, in metres (public) |
+| `?showDiagnostics=` | false | Show the device's measurement list and raw readings |
+| `?pollIntervalMs=` | 40 | Sensor poll period; raise it when debugging a flaky link |
 
-- `SimulationModel.step()` / `reset()` — empty placeholders until you add physics.
-- Placeholder play-area content in `SimulationScreenView` — replace with real UI.
-- `tests/TimeModel.test.ts` — sample only; add tests for your model under `tests/`.
+## Testing
+
+Transports cannot be exercised headless, which is exactly why the pure layers
+are covered: `profiles.test.ts` (range, derivative agreement, continuity across
+smoothed corners), `scoring.test.ts` (the tolerance boundary, exactly),
+`motionMath.test.ts` (the differentiator, including its ends), and
+`MotionMatchModel.test.ts` (the run state machine and sample count).
+
+`npm run test:fuzz:quick` is the one check that exercises real construction of
+both screens in a browser. It is how the `PASCOBLEDevice` constructor throw was
+found; run it after touching anything in the sensor path.

@@ -94,6 +94,104 @@ const MotionMatchColors = {
     default: "#1a1a1a",
     projector: "#1a1a1a",
   }),
+
+  // ── Match chart ──────────────────────────────────────────────────────────────
+
+  /** The target curve the student is trying to match. Drawn dashed as well as coloured. */
+  targetCurveColorProperty: new ProfileColorProperty(MotionMatchNamespace, "targetCurve", {
+    default: "#ffd54f",
+    projector: "#a1690b",
+  }),
+
+  /** Fill of the tolerance band drawn around the target curve. */
+  toleranceBandColorProperty: new ProfileColorProperty(MotionMatchNamespace, "toleranceBand", {
+    default: "rgba(255,213,79,0.16)",
+    projector: "rgba(161,105,11,0.14)",
+  }),
+
+  /** The student's own recorded trace. */
+  traceColorProperty: new ProfileColorProperty(MotionMatchNamespace, "trace", {
+    default: "#4fc3f7",
+    projector: "#0b5f8a",
+  }),
+
+  /** Chart plot-area fill. */
+  chartBackgroundColorProperty: new ProfileColorProperty(MotionMatchNamespace, "chartBackground", {
+    default: "#0d1b2a",
+    projector: "#ffffff",
+  }),
+
+  /** Chart grid lines. */
+  chartGridColorProperty: new ProfileColorProperty(MotionMatchNamespace, "chartGrid", {
+    default: "#2a3f5f",
+    projector: "#d5d5d5",
+  }),
+
+  /** Chart border, tick marks, and the v = 0 axis line. */
+  chartBorderColorProperty: new ProfileColorProperty(MotionMatchNamespace, "chartBorder", {
+    default: "#5a7fa8",
+    projector: "#666666",
+  }),
+
+  // ── Play area ────────────────────────────────────────────────────────────────
+
+  /** The strip the walker moves along. */
+  trackColorProperty: new ProfileColorProperty(MotionMatchNamespace, "track", {
+    default: "#22314a",
+    projector: "#e8e8e8",
+  }),
+
+  /** Metre marks along the track. */
+  trackMarkColorProperty: new ProfileColorProperty(MotionMatchNamespace, "trackMark", {
+    default: "#5a7fa8",
+    projector: "#8a8a8a",
+  }),
+
+  /** The walker figure. */
+  walkerColorProperty: new ProfileColorProperty(MotionMatchNamespace, "walker", {
+    default: "#4fc3f7",
+    projector: "#0b5f8a",
+  }),
+
+  /** Body of the motion sensor drawn at the origin of the track. */
+  sensorBodyColorProperty: new ProfileColorProperty(MotionMatchNamespace, "sensorBody", {
+    default: "#8899aa",
+    projector: "#555555",
+  }),
+
+  /** The sensor's ultrasound cone, shown while a run is recording. */
+  sensorBeamColorProperty: new ProfileColorProperty(MotionMatchNamespace, "sensorBeam", {
+    default: "rgba(79,195,247,0.14)",
+    projector: "rgba(11,95,138,0.10)",
+  }),
+
+  // ── Connection status ────────────────────────────────────────────────────────
+  // The status dot is always paired with a text label; colour never carries the
+  // meaning on its own.
+
+  /** Status dot while disconnected. */
+  statusDisconnectedColorProperty: new ProfileColorProperty(MotionMatchNamespace, "statusDisconnected", {
+    default: "#7a8794",
+    projector: "#777777",
+  }),
+
+  /** Status dot while a connection is being negotiated. */
+  statusConnectingColorProperty: new ProfileColorProperty(MotionMatchNamespace, "statusConnecting", {
+    default: "#ffb74d",
+    projector: "#b26a00",
+  }),
+
+  /** Status dot once the sensor is streaming. */
+  statusConnectedColorProperty: new ProfileColorProperty(MotionMatchNamespace, "statusConnected", {
+    default: "#66bb6a",
+    projector: "#1b7d1f",
+  }),
+
+  /** Status dot and message text after a connection error. */
+  statusErrorColorProperty: new ProfileColorProperty(MotionMatchNamespace, "statusError", {
+    default: "#ef5350",
+    projector: "#b71c1c",
+  }),
 };
 
 export default MotionMatchColors;

@@ -35,12 +35,12 @@ onReadyToLaunch(() => {
   const simPreferences = new MotionMatchPreferencesModel(Tandem.ROOT.createTandem("preferences"));
 
   const screens = [
-    new SimulationScreen({
+    new SimulationScreen(simPreferences, {
       name: stringManager.getScreenNames().simulationStringProperty,
       tandem: Tandem.ROOT.createTandem("simulationScreen"),
       backgroundColorProperty: MotionMatchColors.backgroundColorProperty,
     }),
-    new MotionSensorScreen({
+    new MotionSensorScreen(simPreferences, {
       name: stringManager.getScreenNames().sensorStringProperty,
       tandem: Tandem.ROOT.createTandem("sensorScreen"),
       backgroundColorProperty: MotionMatchColors.backgroundColorProperty,
@@ -70,10 +70,7 @@ onReadyToLaunch(() => {
 
     // Optional: fill in credits shown in Help → About
     credits: {
-      leadDesign: "",
-      softwareDevelopment: "",
-      team: "",
-      qualityAssurance: "",
+      softwareDevelopment: "OpenPhysics",
     },
   });
 

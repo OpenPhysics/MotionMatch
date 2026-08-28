@@ -4,29 +4,41 @@
  * Model for the simulation-specific preferences shown in Preferences →
  * Simulation. Each preference Property takes its initial value from the
  * corresponding query parameter in motionMatchQueryParameters.
- *
- * Remove the example preference (and its query parameter / UI control) if the
- * sim has no sim-specific preferences.
  */
 
-import { BooleanProperty } from "scenerystack/axon";
+import { BooleanProperty, NumberProperty } from "scenerystack/axon";
 import type { Tandem } from "scenerystack/tandem";
+import { POSITION_TOLERANCE_RANGE_M } from "../MotionMatchConstants.js";
 import MotionMatchNamespace from "../MotionMatchNamespace.js";
 import motionMatchQueryParameters from "./motionMatchQueryParameters.js";
 
 export class MotionMatchPreferencesModel {
-  /** Example preference; initial value comes from the `exampleToggle` query parameter. */
-  public readonly exampleToggleProperty: BooleanProperty;
+  /**
+   * Half-width of the position match band, in metres. Widening it makes every
+   * curve easier; the band is drawn on the chart, so the change is visible
+   * rather than a silent thumb on the scale.
+   */
+  public readonly positionToleranceProperty: NumberProperty;
+
+  /** Whether to show raw sensor readings on the Motion Sensor screen. */
+  public readonly showDiagnosticsProperty: BooleanProperty;
 
   public constructor(tandem?: Tandem) {
-    this.exampleToggleProperty = new BooleanProperty(
-      motionMatchQueryParameters.exampleToggle,
-      tandem ? { tandem: tandem.createTandem("exampleToggleProperty") } : undefined,
+    this.positionToleranceProperty = new NumberProperty(motionMatchQueryParameters.matchTolerance, {
+      range: POSITION_TOLERANCE_RANGE_M,
+      units: "m",
+      ...(tandem ? { tandem: tandem.createTandem("positionToleranceProperty") } : {}),
+    });
+
+    this.showDiagnosticsProperty = new BooleanProperty(
+      motionMatchQueryParameters.showDiagnostics,
+      tandem ? { tandem: tandem.createTandem("showDiagnosticsProperty") } : undefined,
     );
   }
 
   public reset(): void {
-    this.exampleToggleProperty.reset();
+    this.positionToleranceProperty.reset();
+    this.showDiagnosticsProperty.reset();
   }
 }
 

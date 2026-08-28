@@ -46,29 +46,46 @@ const stringProperties = LocalizedString.getNestedStringProperties({
 });
 
 /**
- * Explicit `a11y` shape exposed by {@link StringManager.getA11yStrings}.
- * Keep this in sync with the `a11y` key in `strings_en.json` — a locale key
- * rename that is not mirrored here fails at the getter return (not silently).
+ * The a11y shape both screens share, and the only shape the shared ScreenView
+ * needs. The Motion Sensor screen's block is a strict superset of the
+ * Simulation screen's — same summary regions, same figure and control names,
+ * plus connect/disconnect — so one type serves the shared view and each screen
+ * reaches for its own extras separately.
+ *
+ * Keep in sync with the `a11y` key in `strings_en.json`; a rename that is not
+ * mirrored here fails at the getter return rather than silently at runtime.
  */
-export type MotionMatchA11yStrings = {
+export type ScreenA11yStrings = {
   readonly screenSummary: {
     readonly playAreaStringProperty: ReadOnlyProperty<string>;
     readonly controlAreaStringProperty: ReadOnlyProperty<string>;
     readonly interactionHintStringProperty: ReadOnlyProperty<string>;
   };
-  readonly currentDetailsStringProperty: ReadOnlyProperty<string>;
+  readonly currentDetails: {
+    readonly readyStringProperty: ReadOnlyProperty<string>;
+    readonly countdownStringProperty: ReadOnlyProperty<string>;
+    readonly recordingStringProperty: ReadOnlyProperty<string>;
+    readonly scoredStringProperty: ReadOnlyProperty<string>;
+    readonly waitingForSensorStringProperty: ReadOnlyProperty<string>;
+  };
   readonly controls: {
-    readonly exampleControlStringProperty: ReadOnlyProperty<string>;
+    readonly walkerStringProperty: ReadOnlyProperty<string>;
+    readonly walkerHelpStringProperty: ReadOnlyProperty<string>;
+    readonly profileComboBoxStringProperty: ReadOnlyProperty<string>;
+    readonly profileComboBoxHelpStringProperty: ReadOnlyProperty<string>;
+    readonly graphModeRadioStringProperty: ReadOnlyProperty<string>;
+    readonly startButtonStringProperty: ReadOnlyProperty<string>;
+    readonly stopButtonStringProperty: ReadOnlyProperty<string>;
+    readonly tryAgainButtonStringProperty: ReadOnlyProperty<string>;
   };
 };
 
-/**
- * Explicit Preferences → Simulation labels from {@link StringManager.getPreferences}.
- * Same sync rule as {@link MotionMatchA11yStrings}.
- */
-export type MotionMatchPreferenceStrings = {
-  readonly titleStringProperty: ReadOnlyProperty<string>;
-  readonly exampleToggleStringProperty: ReadOnlyProperty<string>;
+/** The Motion Sensor screen's block: the shared shape plus the link controls. */
+export type SensorA11yStrings = ScreenA11yStrings & {
+  readonly controls: {
+    readonly connectButtonStringProperty: ReadOnlyProperty<string>;
+    readonly disconnectButtonStringProperty: ReadOnlyProperty<string>;
+  };
 };
 
 /**
@@ -90,18 +107,12 @@ export class StringManager {
     return StringManager.instance;
   }
 
-  /**
-   * The simulation title shown in the navigation bar and browser tab.
-   * Updates automatically when the locale changes.
-   */
+  /** The simulation title shown in the navigation bar and browser tab. */
   public getTitleStringProperty(): ReadOnlyProperty<string> {
     return stringProperties.titleStringProperty;
   }
 
-  /**
-   * Screen name StringProperties used when constructing Screen instances.
-   * Each property updates automatically when the locale changes.
-   */
+  /** Screen name StringProperties used when constructing Screen instances. */
   public getScreenNames(): {
     readonly simulationStringProperty: ReadOnlyProperty<string>;
     readonly sensorStringProperty: ReadOnlyProperty<string>;
@@ -112,19 +123,57 @@ export class StringManager {
     };
   }
 
+  /** One-line description of each of the nine curves, keyed by profile id. */
+  public getProfileDescriptions() {
+    return stringProperties.profiles;
+  }
+
+  /** "{{letter}} — {{description}}", the label on a curve's combo-box item. */
+  public getProfileLabelPatternProperty(): ReadOnlyProperty<string> {
+    return stringProperties.profileLabelPatternStringProperty;
+  }
+
+  /** Heading above the curve chooser. */
+  public getChooseCurveStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.chooseCurveStringProperty;
+  }
+
+  /** Labels for the Position / Velocity toggle. */
+  public getGraphModeStrings() {
+    return stringProperties.graphMode;
+  }
+
+  /** Axis titles, including units. */
+  public getAxesStrings() {
+    return stringProperties.axes;
+  }
+
+  /** Chart legend labels. */
+  public getLegendStrings() {
+    return stringProperties.legend;
+  }
+
+  /** Run-control labels and the score readout pattern. */
+  public getRunStrings() {
+    return stringProperties.run;
+  }
+
+  /** Connection status, buttons, and unavailable-browser messages. */
+  public getSensorStrings() {
+    return stringProperties.sensor;
+  }
+
   /** Accessibility strings for the Simulation screen. */
-  public getSimulationA11yStrings() {
+  public getSimulationA11yStrings(): ScreenA11yStrings {
     return stringProperties.a11y.simulation;
   }
 
   /** Accessibility strings for the Motion Sensor screen. */
-  public getMotionSensorA11yStrings() {
+  public getMotionSensorA11yStrings(): SensorA11yStrings {
     return stringProperties.a11y.sensor;
   }
 
-  /**
-   * Simulation-specific preference labels shown in Preferences → Simulation.
-   */
+  /** Simulation-specific preference labels shown in Preferences → Simulation. */
   public getPreferences() {
     return stringProperties.preferences;
   }

@@ -1,43 +1,27 @@
 /**
  * SimulationModel.ts
  *
- * The top-level model for the simulation screen.
- *
- * Add your simulation's state here using reactive Property objects from
- * scenerystack/axon. The view observes these properties and updates automatically.
- *
- * ── Example ──────────────────────────────────────────────────────────────────
- *   import { BooleanProperty, NumberProperty } from "scenerystack/axon";
- *
- *   public readonly isRunningProperty = new BooleanProperty(false);
- *   public readonly timeProperty = new NumberProperty(0);    // seconds
- *
- * ── Step cycle ────────────────────────────────────────────────────────────────
- * The Sim calls step(dt) on every animation frame. Advance your model state
- * in that method (e.g. integrate equations, update positions).
- *
- * ── Reset ─────────────────────────────────────────────────────────────────────
- * reset() is called when the user presses Reset All. Call .reset() on every
- * Property declared here.
+ * The Simulation screen's model: MotionMatchModel driven by the walker the
+ * student drags. Everything else — the nine curves, the run lifecycle, the
+ * scorer — is shared with the Motion Sensor screen.
  */
-import type { TModel } from "scenerystack/joist";
 
-export class SimulationModel implements TModel {
-  /**
-   * Resets all model state to initial values.
-   * Called when the user presses the Reset All button.
-   */
-  public reset(): void {
-    // TODO: call .reset() on every Property declared in this model
-  }
+import { MotionMatchModel } from "../../common/model/MotionMatchModel.js";
+import { PointerPositionSource } from "../../common/model/PointerPositionSource.js";
+import { PositionSourceType } from "../../common/model/PositionSource.js";
+import type { MotionMatchPreferencesModel } from "../../preferences/MotionMatchPreferencesModel.js";
 
-  /**
-   * Steps the model forward by dt seconds.
-   * Called every animation frame by the Sim framework.
-   *
-   * @param _dt - elapsed time in seconds since the last frame
-   */
-  public step(_dt: number): void {
-    // TODO: advance simulation state here
+export class SimulationModel extends MotionMatchModel {
+  /** Kept as a concrete type so the view can write to it while dragging. */
+  public readonly pointerSource: PointerPositionSource;
+
+  public constructor(preferences: MotionMatchPreferencesModel) {
+    const source = new PointerPositionSource();
+    super({
+      sourceType: PositionSourceType.POINTER,
+      source: source,
+      positionToleranceProperty: preferences.positionToleranceProperty,
+    });
+    this.pointerSource = source;
   }
 }
