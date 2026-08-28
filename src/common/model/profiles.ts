@@ -5,9 +5,9 @@
  * sheet (012-14624B) so a class can work from the printed worksheet and the sim
  * interchangeably.
  *
- * All nine are defined over [0, RUN_DURATION_S] and stay within 0.5–3.5 m, well
- * inside the PS-3219's 0.15–4 m window, so a student never walks into the dead
- * zone or off the far end. The fastest (I) peaks near 1.26 m/s.
+ * All nine are defined over [0, RUN_DURATION_S] and stay within 0.25–1.75 m,
+ * keeping the activity within a practical 2 m classroom walking area. The
+ * fastest (I) peaks near 0.63 m/s.
  *
  * Equations and the pedagogy behind each shape are in doc/model.md.
  */
@@ -20,8 +20,8 @@ const profileA = new MotionProfile(
   "a",
   "A",
   analyticShape(
-    (t) => 0.5 + 0.3 * t,
-    () => 0.3,
+    (t) => 0.25 + 0.15 * t,
+    () => 0.15,
   ),
 );
 
@@ -30,8 +30,8 @@ const profileB = new MotionProfile(
   "b",
   "B",
   analyticShape(
-    (t) => 3.5 - 0.3 * t,
-    () => -0.3,
+    (t) => 1.75 - 0.15 * t,
+    () => -0.15,
   ),
 );
 
@@ -40,7 +40,7 @@ const profileC = new MotionProfile(
   "c",
   "C",
   analyticShape(
-    () => 2.0,
+    () => 1.0,
     () => 0,
   ),
 );
@@ -50,9 +50,9 @@ const profileD = new MotionProfile(
   "d",
   "D",
   piecewiseLinearShape([
-    { time: 0, position: 0.5 },
-    { time: 6, position: 1.1 },
-    { time: RUN_DURATION_S, position: 3.5 },
+    { time: 0, position: 0.25 },
+    { time: 6, position: 0.55 },
+    { time: RUN_DURATION_S, position: 1.75 },
   ]),
 );
 
@@ -61,8 +61,8 @@ const profileE = new MotionProfile(
   "e",
   "E",
   analyticShape(
-    (t) => 0.5 + 0.03 * t * t,
-    (t) => 0.06 * t,
+    (t) => 0.25 + 0.015 * t * t,
+    (t) => 0.03 * t,
   ),
 );
 
@@ -71,10 +71,10 @@ const profileF = new MotionProfile(
   "f",
   "F",
   piecewiseLinearShape([
-    { time: 0, position: 0.7 },
-    { time: 2, position: 0.7 },
-    { time: 8, position: 3.4 },
-    { time: RUN_DURATION_S, position: 3.4 },
+    { time: 0, position: 0.35 },
+    { time: 2, position: 0.35 },
+    { time: 8, position: 1.7 },
+    { time: RUN_DURATION_S, position: 1.7 },
   ]),
 );
 
@@ -83,11 +83,11 @@ const profileG = new MotionProfile(
   "g",
   "G",
   piecewiseLinearShape([
-    { time: 0, position: 0.6 },
-    { time: 1.5, position: 0.6 },
-    { time: 5, position: 3.2 },
-    { time: 7, position: 3.2 },
-    { time: RUN_DURATION_S, position: 2.0 },
+    { time: 0, position: 0.3 },
+    { time: 1.5, position: 0.3 },
+    { time: 5, position: 1.6 },
+    { time: 7, position: 1.6 },
+    { time: RUN_DURATION_S, position: 1.0 },
   ]),
 );
 
@@ -100,8 +100,8 @@ const profileH = new MotionProfile(
   "h",
   "H",
   analyticShape(
-    (t) => 0.6 + 0.112 * t * (RUN_DURATION_S - t),
-    (t) => 0.112 * (RUN_DURATION_S - 2 * t),
+    (t) => 0.3 + 0.056 * t * (RUN_DURATION_S - t),
+    (t) => 0.056 * (RUN_DURATION_S - 2 * t),
   ),
 );
 
@@ -110,8 +110,8 @@ const profileI = new MotionProfile(
   "i",
   "I",
   analyticShape(
-    (t) => 2.0 + 0.8 * Math.cos((Math.PI * t) / 2),
-    (t) => -0.4 * Math.PI * Math.sin((Math.PI * t) / 2),
+    (t) => 1.0 + 0.4 * Math.cos((Math.PI * t) / 2),
+    (t) => -0.2 * Math.PI * Math.sin((Math.PI * t) / 2),
   ),
 );
 

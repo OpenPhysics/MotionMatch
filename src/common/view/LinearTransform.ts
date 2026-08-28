@@ -19,7 +19,7 @@ export class LinearTransform {
 
   /**
    * @param trackWidth - width of the track in pixels
-   * @param edgeInset - pixels reserved at each end so the figure at 0 m or 4 m
+   * @param edgeInset - pixels reserved at each end so the figure stays on track
    *                    is still fully drawn inside the track
    */
   public constructor(trackWidth: number, edgeInset = 0) {

@@ -10,11 +10,15 @@
 import { describe, expect, it } from "vitest";
 import { smoothstep } from "../../../src/common/model/MotionProfile.js";
 import { PROFILES } from "../../../src/common/model/profiles.js";
-import { CORNER_SMOOTHING_S, RUN_DURATION_S } from "../../../src/MotionMatchConstants.js";
+import {
+  CORNER_SMOOTHING_S,
+  POSITION_RANGE_M,
+  RUN_DURATION_S,
+  VELOCITY_RANGE_MPS,
+} from "../../../src/MotionMatchConstants.js";
 
 /** The PS-3219's usable window, in metres. */
 const SENSOR_MIN = 0.15;
-const SENSOR_MAX = 4;
 
 /** Samples across the run, dense enough to catch a local excursion. */
 function times(count = 501): number[] {
@@ -37,13 +41,13 @@ describe("motion profiles", () => {
         for (const t of times()) {
           const x = profile.position(t);
           expect(x).toBeGreaterThanOrEqual(SENSOR_MIN);
-          expect(x).toBeLessThanOrEqual(SENSOR_MAX);
+          expect(x).toBeLessThanOrEqual(POSITION_RANGE_M.max);
         }
       });
 
       it("stays inside the velocity axis", () => {
         for (const t of times()) {
-          expect(Math.abs(profile.velocity(t))).toBeLessThanOrEqual(1.5);
+          expect(VELOCITY_RANGE_MPS.contains(profile.velocity(t))).toBe(true);
         }
       });
 

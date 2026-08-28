@@ -1,8 +1,8 @@
 /**
  * MatchChartNode.ts
  *
- * The graph: a fixed 0–10 s window showing the target curve, the tolerance band
- * around it, and the student's trace as it is recorded.
+ * The graph: a fixed -3–10 s window showing an unscored preparation preview,
+ * the target curve, the tolerance band, and the student's recorded trace.
  *
  * ── Why the band is drawn ─────────────────────────────────────────────────────
  * The score is the fraction of samples inside this band, so the band is not
@@ -36,6 +36,7 @@ import MotionMatchColors from "../../MotionMatchColors.js";
 import {
   CHART_HEIGHT,
   CHART_WIDTH,
+  COUNTDOWN_S,
   POSITION_RANGE_M,
   POSITION_TICK_SPACING_M,
   RUN_DURATION_S,
@@ -85,7 +86,7 @@ export class MatchChartNode extends Node {
     this.chartTransform = new ChartTransform({
       viewWidth: plotWidth,
       viewHeight: plotHeight,
-      modelXRange: new Range(0, RUN_DURATION_S),
+      modelXRange: new Range(-COUNTDOWN_S, RUN_DURATION_S),
       modelYRange: POSITION_RANGE_M,
       // Bamboo's default puts +y downward in view space; a graph of position
       // needs larger values higher up.
@@ -280,7 +281,9 @@ export class MatchChartNode extends Node {
 
   /** Redraws the student's trace from the model's current samples. */
   public updateTrace(): void {
-    this.tracePlot.setDataSet(this.model.getTraceSamples().map((sample) => new Vector2(sample.time, sample.value)));
+    this.tracePlot.setDataSet(
+      this.model.getDisplayTraceSamples().map((sample) => new Vector2(sample.time, sample.value)),
+    );
   }
 
   /** Whole numbers without a decimal point, halves with one. */

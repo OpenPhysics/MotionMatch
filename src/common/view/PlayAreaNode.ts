@@ -1,7 +1,7 @@
 /**
  * PlayAreaNode.ts
  *
- * The track the walker moves along: a 0–4 m strip with the motion sensor at the
+ * The track the walker moves along: a 0–2 m strip with the motion sensor at the
  * origin, metre marks, and the figure itself.
  *
  * The two screens draw the same track. Only the figure differs — draggable on
@@ -20,7 +20,7 @@ import { WalkerNode } from "./WalkerNode.js";
 
 const TICK_LABEL_FONT = new PhetFont(10);
 
-/** Pixels reserved at each end so the figure at 0 m or 4 m stays on the track. */
+/** Pixels reserved at each end so the figure stays on the track at either limit. */
 const EDGE_INSET = 26;
 
 /** Baseline the figure stands on, measured from the top of the track. */

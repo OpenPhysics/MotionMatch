@@ -78,14 +78,13 @@ export const DERIVATIVE_WINDOW_SAMPLES = 5;
 // ── Axes (SI units) ───────────────────────────────────────────────────────────
 
 /**
- * Position axis. The upper bound is the PS-3219's maximum range; every profile
- * stays inside 0.5–3.5 m so a student never walks into the 0.15 m dead zone or
- * off the far end.
+ * Position axis and activity area. Although the PS-3219 can measure farther,
+ * 2 m is a practical maximum walking distance for a classroom activity.
  */
-export const POSITION_RANGE_M = new Range(0, 4);
+export const POSITION_RANGE_M = new Range(0, 2);
 
-/** Velocity axis. The fastest profile peaks near 1.26 m/s, so ±1.5 covers all nine. */
-export const VELOCITY_RANGE_MPS = new Range(-1.5, 1.5);
+/** Velocity axis. The fastest rescaled profile peaks near 0.63 m/s. */
+export const VELOCITY_RANGE_MPS = new Range(-0.75, 0.75);
 
 /** Closest distance the PASCO Wireless Motion Sensor (PS-3219) can resolve, in metres. */
 export const SENSOR_MINIMUM_RANGE_M = 0.15;
@@ -93,7 +92,7 @@ export const SENSOR_MINIMUM_RANGE_M = 0.15;
 /** Tick spacing on the two axes. */
 export const TIME_TICK_SPACING_S = 1;
 export const POSITION_TICK_SPACING_M = 0.5;
-export const VELOCITY_TICK_SPACING_MPS = 0.5;
+export const VELOCITY_TICK_SPACING_MPS = 0.25;
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 
@@ -101,17 +100,17 @@ export const VELOCITY_TICK_SPACING_MPS = 0.5;
  * Half-width of the position match band, in metres. A sample counts as matched
  * when it lies within this distance of the target curve.
  */
-export const DEFAULT_POSITION_TOLERANCE_M = 0.25;
+export const DEFAULT_POSITION_TOLERANCE_M = 0.125;
 
 /**
  * Half-width of the velocity match band, in m/s. Wider than the position band
  * in proportional terms because velocity is differentiated from the position
  * trace and therefore noisier.
  */
-export const DEFAULT_VELOCITY_TOLERANCE_MPS = 0.3;
+export const DEFAULT_VELOCITY_TOLERANCE_MPS = 0.15;
 
 /** Bounds accepted for the match-tolerance preference, in metres. */
-export const POSITION_TOLERANCE_RANGE_M = new Range(0.1, 0.6);
+export const POSITION_TOLERANCE_RANGE_M = new Range(0.05, 0.3);
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
 

@@ -18,25 +18,25 @@ student *is* the moving object.
 
 The curves are lettered A–I after PASCO's MatchGraph activity sheet
 (`012-14624B`), so a class can work from the printed worksheet and the sim
-interchangeably. Each runs for **10 s** on a **0–4 m** position axis, with the
+interchangeably. Each runs for **10 s** on a **0–2 m** position axis, with the
 sensor at the origin.
 
 | Id | x(t), metres | Motion |
 |---|---|---|
-| A | `0.5 + 0.30 t` | constant speed away |
-| B | `3.5 − 0.30 t` | constant speed toward |
-| C | `2.0` | stand still |
-| D | `0.5 + 0.10 t` (t ≤ 6); `1.1 + 0.60 (t−6)` | slow away, then fast away |
-| E | `0.5 + 0.03 t²` | start at rest, speed up |
-| F | `0.7` (t ≤ 2); `0.7 + 0.45 (t−2)` (t ≤ 8); `3.4` | wait, walk away, stop |
-| G | `0.6` (t ≤ 1.5); ramp to `3.2` at t = 5; `3.2` (t ≤ 7); down to `2.0` at t = 10 | wait, hurry away, stop, drift back |
-| H | `0.6 + 0.112 t (10 − t)` | away, turn around, come back |
-| I | `2.0 + 0.8 cos(π t / 2)` | back and forth, 2½ cycles |
+| A | `0.25 + 0.15 t` | constant speed away |
+| B | `1.75 − 0.15 t` | constant speed toward |
+| C | `1.0` | stand still |
+| D | `0.25 + 0.05 t` (t ≤ 6); `0.55 + 0.30 (t−6)` | slow away, then fast away |
+| E | `0.25 + 0.015 t²` | start at rest, speed up |
+| F | `0.35` (t ≤ 2); `0.35 + 0.225 (t−2)` (t ≤ 8); `1.7` | wait, walk away, stop |
+| G | `0.3` (t ≤ 1.5); ramp to `1.6` at t = 5; `1.6` (t ≤ 7); down to `1.0` at t = 10 | wait, hurry away, stop, drift back |
+| H | `0.3 + 0.056 t (10 − t)` | away, turn around, come back |
+| I | `1.0 + 0.4 cos(π t / 2)` | back and forth, 2½ cycles |
 
-All nine stay inside 0.5–3.5 m, comfortably within the PS-3219's 0.15–4 m
-window, so a student never walks into the dead zone or off the far end. The
-fastest (I) peaks at 0.4π ≈ 1.26 m/s, so a ±1.5 m/s velocity axis covers the
-whole set.
+All nine stay inside 0.25–1.75 m. This avoids the sensor's near-field dead zone
+while keeping every challenge within a practical 2 m classroom walking area.
+The fastest (I) peaks at 0.2π ≈ 0.63 m/s, so a ±0.75 m/s velocity axis covers
+the whole set.
 
 ### Velocity targets are derivatives, not a second set of curves
 
@@ -53,7 +53,7 @@ function — a vertical line on the chart, and a speed change no student can wal
 
 Each such corner is blended with a smoothstep `3u² − 2u³` over
 `CORNER_SMOOTHING_S = 0.4 s`, applied to **velocity only**. Position is left
-exactly as drawn: the blend would move it by under 2 cm on a 4 m axis, which is
+exactly as drawn: the blend would move it by under 1 cm on a 2 m axis, which is
 invisible and far inside the match tolerance, and keeping position exact means
 the two modes read as the same curve. Corners in these profiles are at least
 1.5 s apart, so at most one blend is ever active.
@@ -88,7 +88,7 @@ where a turnaround often is.
 **Score = the percentage of recorded samples lying within the tolerance band of
 the target**, rounded to a whole number.
 
-Default tolerances are **±0.25 m** for position and **±0.30 m/s** for velocity;
+Default tolerances are **±0.125 m** for position and **±0.15 m/s** for velocity;
 velocity is wider in proportional terms because it is differentiated from the
 position trace and therefore noisier. The position tolerance is adjustable in
 Preferences and via `?matchTolerance=`.

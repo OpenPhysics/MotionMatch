@@ -63,8 +63,28 @@ describe("MotionMatchModel", () => {
     expect(model.getTraceSamples()).toHaveLength(RUN_DURATION_S / SAMPLE_PERIOD_S);
   });
 
+  it("shows an unscored trace during the three-second preparation period", () => {
+    model.startRun();
+    expect(model.getDisplayTraceSamples()[0]?.time).toBe(-COUNTDOWN_S);
+
+    advance(model, 1);
+    expect(model.getDisplayTraceSamples().at(-1)?.time).toBeCloseTo(-2, 10);
+    expect(model.getTraceSamples()).toHaveLength(0);
+
+    advance(model, COUNTDOWN_S - 1);
+    expect(model.getDisplayTraceSamples().at(-1)?.time).toBe(0);
+    expect(model.getTraceSamples()).toHaveLength(1);
+  });
+
+  it("clears preparation samples when a run is abandoned", () => {
+    model.startRun();
+    advance(model, 1);
+    model.abandonRun();
+    expect(model.getDisplayTraceSamples()).toHaveLength(0);
+  });
+
   it("samples the source, so a perfectly walked curve scores 100", () => {
-    // Profile C is "stand still" at 2 m; park the walker there and do nothing.
+    // Profile C is "stand still" at 1 m; park the walker there and do nothing.
     const standStill = PROFILES.find((p) => p.letter === "C");
     expect(standStill).toBeDefined();
     if (standStill === undefined) {
@@ -137,7 +157,8 @@ describe("MotionMatchModel", () => {
     advance(model, COUNTDOWN_S);
     // A ten-second frame is a tab that was hidden, not ten seconds of walking.
     model.step(10);
-    expect(model.getTraceSamples().length).toBeLessThanOrEqual(5);
+    // One sample is captured at t = 0, then the clamped 0.25 s adds at most five.
+    expect(model.getTraceSamples().length).toBeLessThanOrEqual(6);
   });
 
   it("try again returns to ready without touching the curve or mode", () => {

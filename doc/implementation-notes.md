@@ -84,7 +84,7 @@ Its only raw sample is a two-byte little-endian echo time.
 - **`dispose()` must be idempotent.** Axon Properties throw when disposed twice,
   and the fleet memory-leak suite disposes twice on purpose. `MotionMatchModel`
   guards with an `isDisposed` flag.
-- **`AxisLine` is hidden in position mode.** The position axis runs 0–4 m, so a
+- **`AxisLine` is hidden in position mode.** The position axis runs 0–2 m, so a
   line at model zero would sit on the bottom border and say nothing. It is shown
   only in velocity mode, where v = 0 separates moving away from coming back.
   (The `RadioactivityAndStatistics` warning about `AxisLine` inflating bounds
@@ -102,7 +102,7 @@ Its only raw sample is a two-byte little-endian echo time.
 
 | Parameter | Default | Purpose |
 |---|---|---|
-| `?matchTolerance=` | 0.25 | Half-width of the position match band, in metres (public) |
+| `?matchTolerance=` | 0.125 | Half-width of the position match band, in metres (public) |
 | `?showDiagnostics=` | false | Show the device's measurement list and raw readings |
 | `?pollIntervalMs=` | 40 | Sensor poll period; raise it when debugging a flaky link |
 

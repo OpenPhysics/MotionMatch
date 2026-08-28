@@ -48,6 +48,7 @@ const MAXIMUM_DT_S = 0.25;
  * scores incomparable between runs.
  */
 const TOTAL_SAMPLES = Math.round(RUN_DURATION_S / SAMPLE_PERIOD_S);
+const TOTAL_COUNTDOWN_SAMPLES = Math.round(COUNTDOWN_S / SAMPLE_PERIOD_S);
 
 /**
  * Slack for the countdown comparison. Three seconds of 0.05 s ticks sums to
@@ -101,6 +102,9 @@ export class MotionMatchModel implements TModel {
 
   private readonly trace: Trace;
 
+  /** Live, unscored samples shown to the left of t = 0 during the lead-in. */
+  private readonly previewTrace: Trace;
+
   /** Leftover time not yet consumed by a whole sample period. */
   private timeAccumulator = 0;
 
@@ -118,6 +122,7 @@ export class MotionMatchModel implements TModel {
     this.positionToleranceProperty = providedOptions.positionToleranceProperty ?? null;
 
     this.trace = new Trace();
+    this.previewTrace = new Trace();
 
     this.profileProperty = new Property<MotionProfile>(DEFAULT_PROFILE, { validValues: [...PROFILES] });
     this.graphModeProperty = new Property<GraphModeValue>(GraphMode.POSITION);
@@ -168,12 +173,30 @@ export class MotionMatchModel implements TModel {
       : this.trace.getVelocitySamples();
   }
 
+  /** Preview plus official samples, for drawing only. Preview samples are never scored. */
+  public getDisplayTraceSamples(): readonly Sample[] {
+    const positionSamples = [...this.previewTrace.getPositionSamples(), ...this.trace.getPositionSamples()];
+    if (this.graphModeProperty.value === GraphMode.POSITION) {
+      return positionSamples;
+    }
+
+    // Differentiate the continuous combined series so velocity is meaningful
+    // at t = 0 instead of beginning with an empty edge window.
+    const displayTrace = new Trace();
+    for (const sample of positionSamples) {
+      displayTrace.add(sample.time, sample.value);
+    }
+    return displayTrace.getVelocitySamples();
+  }
+
   /** Begins the 3-2-1 lead-in. No effect unless a run can start. */
   public startRun(): void {
     if (!this.canStartProperty.value) {
       return;
     }
     this.trace.clear();
+    this.previewTrace.clear();
+    this.previewTrace.add(-COUNTDOWN_S, this.source.positionProperty.value);
     this.scoreProperty.value = null;
     this.runTimeProperty.value = 0;
     this.timeAccumulator = 0;
@@ -197,6 +220,7 @@ export class MotionMatchModel implements TModel {
   /** Clears the trace and score and returns to READY, keeping curve and mode. */
   public abandonRun(): void {
     this.trace.clear();
+    this.previewTrace.clear();
     this.scoreProperty.value = null;
     this.runTimeProperty.value = 0;
     this.timeAccumulator = 0;
@@ -221,12 +245,31 @@ export class MotionMatchModel implements TModel {
     this.source.step(clampedDt);
 
     if (state === RunState.COUNTDOWN) {
+      this.timeAccumulator += clampedDt;
+      let previewChanged = false;
+      while (
+        this.timeAccumulator >= SAMPLE_PERIOD_S - TIME_EPSILON_S &&
+        this.sampleIndex < TOTAL_COUNTDOWN_SAMPLES - 1
+      ) {
+        this.timeAccumulator -= SAMPLE_PERIOD_S;
+        this.sampleIndex += 1;
+        this.previewTrace.add(-COUNTDOWN_S + this.sampleIndex * SAMPLE_PERIOD_S, this.source.positionProperty.value);
+        previewChanged = true;
+      }
+
       this.runTimeProperty.value += clampedDt;
+      if (previewChanged) {
+        this.traceChangedProperty.value = !this.traceChangedProperty.value;
+      }
       if (this.runTimeProperty.value >= COUNTDOWN_S - TIME_EPSILON_S) {
         this.runTimeProperty.value = 0;
         this.timeAccumulator = 0;
-        this.sampleIndex = 0;
+        // t = 0 is the first official sample. Keeping it out of preview makes
+        // the boundary explicit and avoids duplicate timestamps in velocity.
+        this.trace.add(0, this.source.positionProperty.value);
+        this.sampleIndex = 1;
         this.runStateProperty.value = RunState.RECORDING;
+        this.traceChangedProperty.value = !this.traceChangedProperty.value;
       }
       return;
     }
