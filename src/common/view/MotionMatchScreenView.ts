@@ -50,7 +50,10 @@ export type MotionMatchScreenViewOptions = MotionMatchScreenViewSelfOptions & Sc
 
 export class MotionMatchScreenView extends ScreenView {
   private readonly chartNode: MatchChartNode;
+  private readonly model: MotionMatchModel;
   private readonly showMotionDiagramProperty: BooleanProperty;
+  private readonly showMotionDiagramLabelsProperty: BooleanProperty;
+  private readonly writablePositionProperty: NumberProperty | undefined;
   private readonly disposeMotionMatchScreenView: () => void;
 
   public constructor(model: MotionMatchModel, providedOptions: MotionMatchScreenViewOptions) {
@@ -58,6 +61,8 @@ export class MotionMatchScreenView extends ScreenView {
     super(options);
 
     const a11y = providedOptions.a11y;
+    this.model = model;
+    this.writablePositionProperty = providedOptions.writablePositionProperty;
     const strings = StringManager.getInstance();
     const legendStrings = strings.getLegendStrings();
 
@@ -114,9 +119,29 @@ export class MotionMatchScreenView extends ScreenView {
     playAreaNode.top = legend.bottom + 10;
     this.addChild(playAreaNode);
 
+    // On the pointer-driven simulation screen, begin each selected challenge
+    // at the target's exact position at t = 0. The sensor screen has no
+    // writable position property, so this remains a simulation-only behavior.
+    const syncWalkerToTarget = () => {
+      if (providedOptions.writablePositionProperty) {
+        providedOptions.writablePositionProperty.value = model.profileProperty.value.position(0);
+      }
+    };
+    if (providedOptions.writablePositionProperty) {
+      syncWalkerToTarget();
+      model.profileProperty.lazyLink(syncWalkerToTarget);
+    }
+
     const showMotionDiagramProperty = new BooleanProperty(false);
+    const showMotionDiagramLabelsProperty = new BooleanProperty(false);
     this.showMotionDiagramProperty = showMotionDiagramProperty;
-    const motionDiagramNode = new MotionDiagramNode(model, CHART_WIDTH, showMotionDiagramProperty);
+    this.showMotionDiagramLabelsProperty = showMotionDiagramLabelsProperty;
+    const motionDiagramNode = new MotionDiagramNode(
+      model,
+      CHART_WIDTH,
+      showMotionDiagramProperty,
+      showMotionDiagramLabelsProperty,
+    );
     motionDiagramNode.left = SCREEN_VIEW_MARGIN;
     motionDiagramNode.top = playAreaNode.bottom + 10;
     this.addChild(motionDiagramNode);
@@ -142,6 +167,32 @@ export class MotionMatchScreenView extends ScreenView {
       }),
       { accessibleName: strings.getShowMotionDiagramStringProperty() },
     );
+    const motionDiagramLabelsCheckbox = new Checkbox(
+      showMotionDiagramLabelsProperty,
+      new Text(strings.getShowMotionDiagramLabelsStringProperty(), {
+        font: LEGEND_FONT,
+        fill: MotionMatchColors.textColorProperty,
+        maxWidth: 276,
+      }),
+      {
+        accessibleName: strings.getShowMotionDiagramLabelsStringProperty(),
+        enabledProperty: showMotionDiagramProperty,
+      },
+    );
+    const motionDiagramControl = new VBox({
+      align: "left",
+      spacing: 7,
+      children: [
+        motionDiagramCheckbox,
+        new HBox({
+          spacing: 6,
+          children: [
+            new Rectangle(0, 0, 18, 1, { fill: null, stroke: null, pickable: false }),
+            motionDiagramLabelsCheckbox,
+          ],
+        }),
+      ],
+    });
 
     const sensorSource = providedOptions.sensorSource;
     const sensorA11y = providedOptions.sensorA11y;
@@ -158,7 +209,7 @@ export class MotionMatchScreenView extends ScreenView {
     const controlColumn = new VBox({
       align: "left",
       spacing: 14,
-      children: [profileControl, motionDiagramCheckbox, runControl, ...(sensorPanel === null ? [] : [sensorPanel])],
+      children: [profileControl, motionDiagramControl, runControl, ...(sensorPanel === null ? [] : [sensorPanel])],
       right: this.layoutBounds.maxX - SCREEN_VIEW_MARGIN,
       top: SCREEN_VIEW_MARGIN,
     });
@@ -190,6 +241,7 @@ export class MotionMatchScreenView extends ScreenView {
           profileControl.comboBox,
           profileControl.graphModeToggle,
           motionDiagramCheckbox,
+          motionDiagramLabelsCheckbox,
           runControl.playPauseButton,
           runControl.tryAgainButton,
           ...(providedOptions.writablePositionProperty ? [playAreaNode.walkerNode] : []),
@@ -204,6 +256,10 @@ export class MotionMatchScreenView extends ScreenView {
     // panels own their listeners and tear them down themselves.
     this.disposeMotionMatchScreenView = () => {
       showMotionDiagramProperty.dispose();
+      showMotionDiagramLabelsProperty.dispose();
+      if (providedOptions.writablePositionProperty) {
+        model.profileProperty.unlink(syncWalkerToTarget);
+      }
     };
   }
 
@@ -225,6 +281,10 @@ export class MotionMatchScreenView extends ScreenView {
   public reset(): void {
     this.chartNode.updateTarget();
     this.showMotionDiagramProperty.reset();
+    this.showMotionDiagramLabelsProperty.reset();
+    if (this.writablePositionProperty) {
+      this.writablePositionProperty.value = this.model.profileProperty.value.position(0);
+    }
   }
 
   public override dispose(): void {

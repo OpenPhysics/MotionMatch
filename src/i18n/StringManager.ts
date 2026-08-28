@@ -148,6 +148,11 @@ export class StringManager {
     return stringProperties.showMotionDiagramStringProperty;
   }
 
+  /** Label for the optional time annotations on motion-diagram dots. */
+  public getShowMotionDiagramLabelsStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.showMotionDiagramLabelsStringProperty;
+  }
+
   /** Labels for the Position / Velocity toggle. */
   public getGraphModeStrings() {
     return stringProperties.graphMode;
