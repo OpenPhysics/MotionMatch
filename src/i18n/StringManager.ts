@@ -138,6 +138,16 @@ export class StringManager {
     return stringProperties.chooseCurveStringProperty;
   }
 
+  /** Label for the optional equal-time-dot motion diagram. */
+  public getMotionDiagramStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.motionDiagramStringProperty;
+  }
+
+  /** Label for the per-screen motion-diagram checkbox. */
+  public getShowMotionDiagramStringProperty(): ReadOnlyProperty<string> {
+    return stringProperties.showMotionDiagramStringProperty;
+  }
+
   /** Labels for the Position / Velocity toggle. */
   public getGraphModeStrings() {
     return stringProperties.graphMode;

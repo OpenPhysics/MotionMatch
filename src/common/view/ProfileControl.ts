@@ -9,11 +9,11 @@
  * absent, so nothing sits between a student and the next attempt.
  */
 
-import type { Property, TReadOnlyProperty } from "scenerystack/axon";
-import { PatternStringProperty } from "scenerystack/axon";
+import { DerivedProperty, PatternStringProperty, type Property, type TReadOnlyProperty } from "scenerystack/axon";
 import { HBox, type Node, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { AquaRadioButtonGroup, ComboBox } from "scenerystack/sun";
+import { ABSwitch, ComboBox } from "scenerystack/sun";
+import { Tandem } from "scenerystack/tandem";
 import { LIGHT_SURFACE_TEXT_FILL, MOTION_MATCH_COMBO_BOX_OPTIONS } from "../../common/MotionMatchButtonOptions.js";
 import { MotionMatchPanel } from "../../common/MotionMatchPanel.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -33,13 +33,14 @@ export type ProfileControlOptions = {
   readonly listParent: Node;
   readonly comboBoxAccessibleName: TReadOnlyProperty<string>;
   readonly comboBoxAccessibleHelpText: TReadOnlyProperty<string>;
-  readonly radioAccessibleName: TReadOnlyProperty<string>;
+  readonly graphModeAccessibleName: TReadOnlyProperty<string>;
+  readonly showMotionDescriptionsProperty: TReadOnlyProperty<boolean>;
 };
 
 export class ProfileControl extends MotionMatchPanel {
   /** Exposed so the ScreenView can order them in the PDOM. */
   public readonly comboBox: ComboBox<MotionProfile>;
-  public readonly graphModeRadioGroup: AquaRadioButtonGroup<GraphModeValue>;
+  public readonly graphModeToggle: ABSwitch<GraphModeValue>;
 
   private readonly disposeProfileControl: () => void;
 
@@ -50,7 +51,7 @@ export class ProfileControl extends MotionMatchPanel {
     const labelPattern = strings.getProfileLabelPatternProperty();
 
     // One PatternStringProperty per curve, disposed with the control.
-    const itemLabelProperties: PatternStringProperty<Record<string, unknown>>[] = [];
+    const itemLabelProperties: { dispose(): void }[] = [];
 
     const comboBox = new ComboBox(
       providedOptions.profileProperty,
@@ -61,7 +62,11 @@ export class ProfileControl extends MotionMatchPanel {
           letter: profile.letter,
           description: descriptionProperty,
         });
-        itemLabelProperties.push(labelProperty);
+        const visibleLabelProperty = new DerivedProperty(
+          [labelProperty, providedOptions.showMotionDescriptionsProperty],
+          (label, showDescriptions) => (showDescriptions ? label : profile.letter),
+        );
+        itemLabelProperties.push(labelProperty, visibleLabelProperty);
 
         return {
           value: profile,
@@ -70,7 +75,7 @@ export class ProfileControl extends MotionMatchPanel {
               spacing: 10,
               children: [
                 createProfileSparkline(profile),
-                new Text(labelProperty, { font: LABEL_FONT, fill: LIGHT_SURFACE_TEXT_FILL, maxWidth: 240 }),
+                new Text(visibleLabelProperty, { font: LABEL_FONT, fill: LIGHT_SURFACE_TEXT_FILL, maxWidth: 240 }),
               ],
             }),
         };
@@ -83,33 +88,26 @@ export class ProfileControl extends MotionMatchPanel {
       },
     );
 
-    const graphModeRadioGroup = new AquaRadioButtonGroup(
+    const positionLabel = new Text(modeStrings.positionStringProperty, {
+      font: LABEL_FONT,
+      fill: MotionMatchColors.textColorProperty,
+      maxWidth: 150,
+    });
+    const velocityLabel = new Text(modeStrings.velocityStringProperty, {
+      font: LABEL_FONT,
+      fill: MotionMatchColors.textColorProperty,
+      maxWidth: 150,
+    });
+    const graphModeToggle = new ABSwitch(
       providedOptions.graphModeProperty,
-      [
-        {
-          value: GraphMode.POSITION,
-          createNode: () =>
-            new Text(modeStrings.positionStringProperty, {
-              font: LABEL_FONT,
-              fill: MotionMatchColors.textColorProperty,
-              maxWidth: 150,
-            }),
-        },
-        {
-          value: GraphMode.VELOCITY,
-          createNode: () =>
-            new Text(modeStrings.velocityStringProperty, {
-              font: LABEL_FONT,
-              fill: MotionMatchColors.textColorProperty,
-              maxWidth: 150,
-            }),
-        },
-      ],
+      GraphMode.POSITION,
+      positionLabel,
+      GraphMode.VELOCITY,
+      velocityLabel,
       {
-        orientation: "horizontal",
-        spacing: 18,
-        radioButtonOptions: { radius: 8 },
-        accessibleName: providedOptions.radioAccessibleName,
+        spacing: 10,
+        accessibleHelpText: providedOptions.graphModeAccessibleName,
+        tandem: Tandem.OPT_OUT,
       },
     );
 
@@ -125,13 +123,13 @@ export class ProfileControl extends MotionMatchPanel {
         spacing: 10,
         preferredWidth: CONTROL_PANEL_WIDTH - 24,
         stretch: true,
-        children: [title, comboBox, graphModeRadioGroup],
+        children: [title, comboBox, graphModeToggle],
       }),
       { minWidth: CONTROL_PANEL_WIDTH },
     );
 
     this.comboBox = comboBox;
-    this.graphModeRadioGroup = graphModeRadioGroup;
+    this.graphModeToggle = graphModeToggle;
 
     this.disposeProfileControl = () => {
       for (const property of itemLabelProperties) {

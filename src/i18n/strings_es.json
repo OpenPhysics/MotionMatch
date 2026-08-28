@@ -17,6 +17,8 @@
   },
   "profileLabelPattern": "{{letter}} — {{description}}",
   "chooseCurve": "Elegir una curva",
+  "motionDiagram": "Diagrama de movimiento · puntos cada 0,5 s",
+  "showMotionDiagram": "Mostrar diagrama de movimiento",
   "graphMode": {
     "position": "Posición",
     "velocity": "Velocidad"
@@ -54,7 +56,8 @@
     "title": "Simulación",
     "matchTolerance": "Tolerancia de coincidencia (m)",
     "matchToleranceDescription": "Cuánto puede alejarse de la curva objetivo y seguir contando como coincidencia. La banda dibujada alrededor de la curva cambia con este valor.",
-    "showDiagnostics": "Mostrar diagnóstico del sensor"
+    "showDiagnostics": "Mostrar diagnóstico del sensor",
+    "showMotionDescriptions": "Mostrar pistas descriptivas de movimiento en el menú de curvas"
   },
   "a11y": {
     "simulation": {

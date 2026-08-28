@@ -12,11 +12,12 @@
  * like the same activity with real hardware attached.
  */
 
-import type { NumberProperty, TReadOnlyProperty } from "scenerystack/axon";
+import { BooleanProperty, type NumberProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { HBox, Line, Node, Rectangle, type TColor, Text, VBox } from "scenerystack/scenery";
 import { PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
+import { Checkbox } from "scenerystack/sun";
 import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/MotionMatchButtonOptions.js";
 import type { ScreenA11yStrings, SensorA11yStrings } from "../../i18n/StringManager.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -25,9 +26,11 @@ import { CHART_WIDTH, SCREEN_VIEW_MARGIN } from "../../MotionMatchConstants.js";
 import type { MotionMatchModel } from "../model/MotionMatchModel.js";
 import type { MotionSensorSource } from "../model/MotionSensorSource.js";
 import { MatchChartNode } from "./MatchChartNode.js";
+import { MotionDiagramNode } from "./MotionDiagramNode.js";
 import { PlayAreaNode } from "./PlayAreaNode.js";
 import { ProfileControl } from "./ProfileControl.js";
 import { RunControl } from "./RunControl.js";
+import { ScoreCardNode } from "./ScoreCardNode.js";
 import { SensorPanel } from "./SensorPanel.js";
 
 const LEGEND_FONT = new PhetFont(12);
@@ -40,12 +43,14 @@ export type MotionMatchScreenViewSelfOptions = {
   readonly sensorSource?: MotionSensorSource;
   readonly sensorA11y?: SensorA11yStrings;
   readonly showDiagnosticsProperty?: TReadOnlyProperty<boolean>;
+  readonly showMotionDescriptionsProperty: TReadOnlyProperty<boolean>;
 };
 
 export type MotionMatchScreenViewOptions = MotionMatchScreenViewSelfOptions & ScreenViewOptions;
 
 export class MotionMatchScreenView extends ScreenView {
   private readonly chartNode: MatchChartNode;
+  private readonly showMotionDiagramProperty: BooleanProperty;
   private readonly disposeMotionMatchScreenView: () => void;
 
   public constructor(model: MotionMatchModel, providedOptions: MotionMatchScreenViewOptions) {
@@ -109,16 +114,34 @@ export class MotionMatchScreenView extends ScreenView {
     playAreaNode.top = legend.bottom + 10;
     this.addChild(playAreaNode);
 
+    const showMotionDiagramProperty = new BooleanProperty(false);
+    this.showMotionDiagramProperty = showMotionDiagramProperty;
+    const motionDiagramNode = new MotionDiagramNode(model, CHART_WIDTH, showMotionDiagramProperty);
+    motionDiagramNode.left = SCREEN_VIEW_MARGIN;
+    motionDiagramNode.top = playAreaNode.bottom + 10;
+    this.addChild(motionDiagramNode);
+
     const profileControl = new ProfileControl({
       profileProperty: model.profileProperty,
       graphModeProperty: model.graphModeProperty,
       listParent: comboBoxListParent,
       comboBoxAccessibleName: a11y.controls.profileComboBoxStringProperty,
       comboBoxAccessibleHelpText: a11y.controls.profileComboBoxHelpStringProperty,
-      radioAccessibleName: a11y.controls.graphModeRadioStringProperty,
+      graphModeAccessibleName: a11y.controls.graphModeRadioStringProperty,
+      showMotionDescriptionsProperty: providedOptions.showMotionDescriptionsProperty,
     });
 
     const runControl = new RunControl(model, a11y);
+
+    const motionDiagramCheckbox = new Checkbox(
+      showMotionDiagramProperty,
+      new Text(strings.getShowMotionDiagramStringProperty(), {
+        font: LEGEND_FONT,
+        fill: MotionMatchColors.textColorProperty,
+        maxWidth: 300,
+      }),
+      { accessibleName: strings.getShowMotionDiagramStringProperty() },
+    );
 
     const sensorSource = providedOptions.sensorSource;
     const sensorA11y = providedOptions.sensorA11y;
@@ -135,7 +158,7 @@ export class MotionMatchScreenView extends ScreenView {
     const controlColumn = new VBox({
       align: "left",
       spacing: 14,
-      children: [profileControl, runControl, ...(sensorPanel === null ? [] : [sensorPanel])],
+      children: [profileControl, motionDiagramCheckbox, runControl, ...(sensorPanel === null ? [] : [sensorPanel])],
       right: this.layoutBounds.maxX - SCREEN_VIEW_MARGIN,
       top: SCREEN_VIEW_MARGIN,
     });
@@ -152,6 +175,11 @@ export class MotionMatchScreenView extends ScreenView {
     });
     this.addChild(resetAllButton);
 
+    const scoreCard = new ScoreCardNode(model);
+    scoreCard.right = this.layoutBounds.maxX - SCREEN_VIEW_MARGIN;
+    scoreCard.bottom = resetAllButton.top - 14;
+    this.addChild(scoreCard);
+
     this.addChild(comboBoxListParent);
 
     // Traversal order follows the task: choose a curve, start the run, move the
@@ -160,9 +188,9 @@ export class MotionMatchScreenView extends ScreenView {
       new Node({
         pdomOrder: [
           profileControl.comboBox,
-          profileControl.graphModeRadioGroup,
-          runControl.startButton,
-          runControl.stopButton,
+          profileControl.graphModeToggle,
+          motionDiagramCheckbox,
+          runControl.playPauseButton,
           runControl.tryAgainButton,
           ...(providedOptions.writablePositionProperty ? [playAreaNode.walkerNode] : []),
           ...(sensorPanel?.connectButton ? [sensorPanel.connectButton] : []),
@@ -175,7 +203,7 @@ export class MotionMatchScreenView extends ScreenView {
     // Nothing here links against model state directly — the chart and the
     // panels own their listeners and tear them down themselves.
     this.disposeMotionMatchScreenView = () => {
-      // intentionally empty
+      showMotionDiagramProperty.dispose();
     };
   }
 
@@ -196,6 +224,7 @@ export class MotionMatchScreenView extends ScreenView {
 
   public reset(): void {
     this.chartNode.updateTarget();
+    this.showMotionDiagramProperty.reset();
   }
 
   public override dispose(): void {

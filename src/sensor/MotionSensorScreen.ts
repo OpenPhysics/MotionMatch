@@ -34,6 +34,7 @@ export class MotionSensorScreen extends Screen<MotionSensorModel, MotionMatchScr
           sensorA11y: a11y,
           sensorSource: model.sensorSource,
           showDiagnosticsProperty: preferences.showDiagnosticsProperty,
+          showMotionDescriptionsProperty: preferences.showMotionDescriptionsProperty,
           screenSummaryContent: new MotionSensorScreenSummaryContent(model),
           tandem: options.tandem.createTandem("view"),
         });

@@ -120,8 +120,11 @@ curve currently drawn.
 The **PASCO Wireless Motion Sensor (PS-3219)** measures 0.15–4 m by ultrasound
 at up to 250 Hz, with 1 mm resolution. It reports a raw echo time in
 microseconds; position is `echo / 10⁶ × 344 m/s ÷ 2`, computed host-side. The
-sim requests the two-byte echo time every 40 ms — faster than it samples, so a
-fresh reading is always waiting.
+After Start is pressed, the sim requests the two-byte echo time every 40 ms —
+faster than it samples, so a fresh reading is always waiting. Polling covers the
+three-second preparation preview and the 10-second official run, then stops so
+the transducer is silent and the last position remains displayed. The Bluetooth
+connection stays open for another attempt.
 
 A reading of exactly 0 means no echo returned: there was nothing within
 0.15–4 m in front of the sensor to reflect off. This is a measurement result,

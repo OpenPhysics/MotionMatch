@@ -3,9 +3,8 @@
  *
  * The Preferences → Simulation tab.
  *
- * Only two knobs, both aimed at the teacher rather than the student: how
- * forgiving a match has to be, and whether to show the raw sensor reading while
- * bringing hardware up.
+ * Teacher-facing controls for match tolerance, optional motion hints, and raw
+ * sensor diagnostics.
  *
  * Note the text colour: the Preferences dialog is always light, whatever colour
  * profile the sim is in, so labels here use `controlSurfaceTextColorProperty`
@@ -62,12 +61,25 @@ export class MotionMatchPreferencesNode extends Node {
       },
     );
 
+    const motionDescriptionsCheckbox = new Checkbox(
+      preferences.showMotionDescriptionsProperty,
+      new Text(strings.showMotionDescriptionsStringProperty, {
+        font: LABEL_FONT,
+        fill: MotionMatchColors.controlSurfaceTextColorProperty,
+        maxWidth: CONTENT_WIDTH - 40,
+      }),
+      {
+        accessibleName: strings.showMotionDescriptionsStringProperty,
+        ...(tandem ? { tandem: tandem.createTandem("motionDescriptionsCheckbox") } : {}),
+      },
+    );
+
     super({
       children: [
         new VBox({
           align: "left",
           spacing: 12,
-          children: [toleranceControl, toleranceDescription, diagnosticsCheckbox],
+          children: [toleranceControl, toleranceDescription, motionDescriptionsCheckbox, diagnosticsCheckbox],
         }),
       ],
     });

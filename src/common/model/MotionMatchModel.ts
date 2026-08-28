@@ -173,6 +173,11 @@ export class MotionMatchModel implements TModel {
       : this.trace.getVelocitySamples();
   }
 
+  /** Official position samples for the equal-time-dot motion diagram. */
+  public getPositionTraceSamples(): readonly Sample[] {
+    return this.trace.getPositionSamples();
+  }
+
   /** Preview plus official samples, for drawing only. Preview samples are never scored. */
   public getDisplayTraceSamples(): readonly Sample[] {
     const positionSamples = [...this.previewTrace.getPositionSamples(), ...this.trace.getPositionSamples()];
@@ -196,6 +201,7 @@ export class MotionMatchModel implements TModel {
     }
     this.trace.clear();
     this.previewTrace.clear();
+    this.source.startSampling();
     this.previewTrace.add(-COUNTDOWN_S, this.source.positionProperty.value);
     this.scoreProperty.value = null;
     this.runTimeProperty.value = 0;
@@ -219,6 +225,7 @@ export class MotionMatchModel implements TModel {
 
   /** Clears the trace and score and returns to READY, keeping curve and mode. */
   public abandonRun(): void {
+    this.source.stopSampling();
     this.trace.clear();
     this.previewTrace.clear();
     this.scoreProperty.value = null;
@@ -230,7 +237,8 @@ export class MotionMatchModel implements TModel {
   }
 
   private finishRun(): void {
-    this.scoreProperty.value = scoreRun(this.getTraceSamples(), this.getTargetFunction(), this.getTolerance());
+    this.source.stopSampling();
+    this.updateScore();
     this.runStateProperty.value = RunState.SCORED;
     this.traceChangedProperty.value = !this.traceChangedProperty.value;
   }
@@ -268,6 +276,7 @@ export class MotionMatchModel implements TModel {
         // the boundary explicit and avoids duplicate timestamps in velocity.
         this.trace.add(0, this.source.positionProperty.value);
         this.sampleIndex = 1;
+        this.updateScore();
         this.runStateProperty.value = RunState.RECORDING;
         this.traceChangedProperty.value = !this.traceChangedProperty.value;
       }
@@ -289,6 +298,7 @@ export class MotionMatchModel implements TModel {
       this.trace.add(this.sampleIndex * SAMPLE_PERIOD_S, this.source.positionProperty.value);
       this.sampleIndex += 1;
       recorded = true;
+      this.updateScore();
       this.runTimeProperty.value = this.sampleIndex * SAMPLE_PERIOD_S;
 
       if (this.sampleIndex >= TOTAL_SAMPLES) {
@@ -299,6 +309,11 @@ export class MotionMatchModel implements TModel {
     if (recorded) {
       this.traceChangedProperty.value = !this.traceChangedProperty.value;
     }
+  }
+
+  /** Updates the provisional or final score from official samples only. */
+  private updateScore(): void {
+    this.scoreProperty.value = scoreRun(this.getTraceSamples(), this.getTargetFunction(), this.getTolerance());
   }
 
   public reset(): void {
@@ -324,6 +339,7 @@ export class MotionMatchModel implements TModel {
     this.runTimeProperty.dispose();
     this.scoreProperty.dispose();
     this.traceChangedProperty.dispose();
+    this.source.stopSampling();
     this.source.dispose();
   }
 }

@@ -40,10 +40,15 @@ export type TPositionSource = {
    */
   readonly isAvailableProperty: TReadOnlyProperty<boolean>;
 
+  /** Begins acquiring live positions for a run. Pointer sources need no setup. */
+  startSampling(): void;
+
+  /** Stops acquiring positions, leaving the most recent value displayed. */
+  stopSampling(): void;
+
   /**
-   * Advances a source that runs on the sim's clock. Hardware sources ignore it:
-   * the sensor keeps ranging whether or not the sim is stepping, and pretending
-   * otherwise would make a paused tab look like a stationary student.
+   * Advances a source that runs on the sim's clock. Hardware sources ignore it
+   * because their acquisition is controlled by startSampling/stopSampling.
    */
   step(dt: number): void;
 

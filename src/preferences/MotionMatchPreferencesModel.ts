@@ -23,6 +23,9 @@ export class MotionMatchPreferencesModel {
   /** Whether to show raw sensor readings on the Motion Sensor screen. */
   public readonly showDiagnosticsProperty: BooleanProperty;
 
+  /** Whether curve choices reveal the motion needed to match them. */
+  public readonly showMotionDescriptionsProperty: BooleanProperty;
+
   public constructor(tandem?: Tandem) {
     this.positionToleranceProperty = new NumberProperty(motionMatchQueryParameters.matchTolerance, {
       range: POSITION_TOLERANCE_RANGE_M,
@@ -34,11 +37,17 @@ export class MotionMatchPreferencesModel {
       motionMatchQueryParameters.showDiagnostics,
       tandem ? { tandem: tandem.createTandem("showDiagnosticsProperty") } : undefined,
     );
+
+    this.showMotionDescriptionsProperty = new BooleanProperty(
+      false,
+      tandem ? { tandem: tandem.createTandem("showMotionDescriptionsProperty") } : undefined,
+    );
   }
 
   public reset(): void {
     this.positionToleranceProperty.reset();
     this.showDiagnosticsProperty.reset();
+    this.showMotionDescriptionsProperty.reset();
   }
 }
 

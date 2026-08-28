@@ -17,6 +17,8 @@
   },
   "profileLabelPattern": "{{letter}} — {{description}}",
   "chooseCurve": "Choisir une courbe",
+  "motionDiagram": "Diagramme de mouvement · points toutes les 0,5 s",
+  "showMotionDiagram": "Afficher le diagramme de mouvement",
   "graphMode": {
     "position": "Position",
     "velocity": "Vitesse"
@@ -54,7 +56,8 @@
     "title": "Simulation",
     "matchTolerance": "Tolérance de correspondance (m)",
     "matchToleranceDescription": "Écart maximal à la courbe cible encore considéré comme une correspondance. La bande dessinée autour de la courbe suit cette valeur.",
-    "showDiagnostics": "Afficher le diagnostic du capteur"
+    "showDiagnostics": "Afficher le diagnostic du capteur",
+    "showMotionDescriptions": "Afficher les indications descriptives de mouvement dans le menu des courbes"
   },
   "a11y": {
     "simulation": {

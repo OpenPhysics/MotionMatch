@@ -5,8 +5,9 @@
  * reached directly through Web Bluetooth using its small PASCO wire protocol.
  *
  * ── Polling, not streaming ────────────────────────────────────────────────────
- * One `readEchoTime` is one BLE round trip. We poll faster than the model
- * samples, so a fresh reading is waiting when the fixed clock comes round.
+ * One `readEchoTime` is one BLE round trip. Polling begins only when a run is
+ * started and stops when that run ends, silencing the ultrasonic transducer
+ * between attempts while leaving the Bluetooth connection ready.
  *
  * ── Errors never reach the caller ─────────────────────────────────────────────
  * `connect()` resolves even when it fails. Connection outcomes are UI state, not
@@ -76,6 +77,8 @@ export class MotionSensorSource implements TPositionSource {
 
   private pollTimerId: ReturnType<typeof setInterval> | null = null;
   private isPolling = false;
+  /** Invalidates an asynchronous read if sampling stops while it is in flight. */
+  private pollingGeneration = 0;
   private consecutiveFailures = 0;
   private diagnosticsStartTimeMs = 0;
 
@@ -91,7 +94,7 @@ export class MotionSensorSource implements TPositionSource {
     this.measurementListProperty = new Property<string>("");
     this.diagnosticsProperty = new Property<string>("");
     this.handleUnexpectedDisconnect = () => {
-      this.stopPolling();
+      this.stopSampling();
       this.availableProperty.value = false;
       this.deviceNameProperty.value = null;
       this.connectionStateProperty.value = ConnectionState.ERROR;
@@ -144,12 +147,11 @@ export class MotionSensorSource implements TPositionSource {
     this.availableProperty.value = true;
     this.consecutiveFailures = 0;
     this.diagnosticsStartTimeMs = performance.now();
-    this.startPolling();
   }
 
   /** Tears the link down deliberately. Never rejects. */
   public async disconnect(): Promise<void> {
-    this.stopPolling();
+    this.stopSampling();
     try {
       await this.device?.disconnect();
     } catch {
@@ -164,16 +166,20 @@ export class MotionSensorSource implements TPositionSource {
     this.connectionStateProperty.value = ConnectionState.DISCONNECTED;
   }
 
-  private startPolling(): void {
+  public startSampling(): void {
     if (this.pollTimerId !== null) {
       return;
     }
+    const generation = ++this.pollingGeneration;
+    this.diagnosticsStartTimeMs = performance.now();
+    this.poll(generation).catch(() => undefined);
     this.pollTimerId = setInterval(() => {
-      this.poll().catch(() => undefined);
+      this.poll(generation).catch(() => undefined);
     }, this.pollIntervalMs);
   }
 
-  private stopPolling(): void {
+  public stopSampling(): void {
+    this.pollingGeneration += 1;
     if (this.pollTimerId !== null) {
       clearInterval(this.pollTimerId);
       this.pollTimerId = null;
@@ -186,7 +192,7 @@ export class MotionSensorSource implements TPositionSource {
    * returned is harmless — the model samples the latest value, so a late
    * reading costs at most one stale sample rather than corrupting the trace.
    */
-  private async poll(): Promise<void> {
+  private async poll(generation: number): Promise<void> {
     const device = this.device;
     if (this.isPolling || device === null || !device.isConnected) {
       return;
@@ -195,6 +201,9 @@ export class MotionSensorSource implements TPositionSource {
 
     try {
       const echoTimeMicroseconds = await device.readEchoTime();
+      if (generation !== this.pollingGeneration) {
+        return;
+      }
       const metres = echoTimeToMetres(echoTimeMicroseconds);
       this.diagnosticsProperty.value = `${POSITION_MEASUREMENT}=${metres}`;
 
@@ -214,9 +223,12 @@ export class MotionSensorSource implements TPositionSource {
         this.sensorPositionProperty.value = POSITION_RANGE_M.constrainValue(metres);
       }
     } catch (error) {
+      if (generation !== this.pollingGeneration) {
+        return;
+      }
       this.consecutiveFailures += 1;
       if (this.consecutiveFailures >= MAXIMUM_CONSECUTIVE_FAILURES) {
-        this.stopPolling();
+        this.stopSampling();
         this.availableProperty.value = false;
         this.connectionStateProperty.value = ConnectionState.ERROR;
         this.errorMessageProperty.value = error instanceof Error ? error.message : String(error);
@@ -236,11 +248,12 @@ export class MotionSensorSource implements TPositionSource {
 
   /** Returns to the pre-run state without dropping the connection. */
   public reset(): void {
+    this.stopSampling();
     this.sensorPositionProperty.reset();
   }
 
   public dispose(): void {
-    this.stopPolling();
+    this.stopSampling();
     if (this.device !== null) {
       // Fire-and-forget: dispose cannot await, and a failed teardown of a link
       // that is going away anyway has nothing useful to report.

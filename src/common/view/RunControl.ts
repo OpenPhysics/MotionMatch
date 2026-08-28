@@ -1,19 +1,18 @@
 /**
  * RunControl.ts
  *
- * Start the run, stop it early, try again — and the score for the run just
- * finished.
+ * Start or pause the run with the standard play/pause control, then try again.
  *
  * ── The score is only ever the current run ────────────────────────────────────
  * Nothing is stored. There is no name to enter, no leaderboard, no history to
- * page through: the number appears when a run ends, and it is gone the moment
+ * page through: the live number becomes final when a run ends, and it is gone the moment
  * the student picks a different curve, switches to velocity, or presses Try
  * Again. That is the whole scoring feature, deliberately.
  */
 
-import { DerivedProperty, PatternStringProperty } from "scenerystack/axon";
+import { BooleanProperty, DerivedProperty } from "scenerystack/axon";
 import { Text, VBox } from "scenerystack/scenery";
-import { PhetFont } from "scenerystack/scenery-phet";
+import { PhetFont, PlayPauseButton } from "scenerystack/scenery-phet";
 import { RectangularPushButton } from "scenerystack/sun";
 import { FLAT_PANEL_PUSH_BUTTON_OPTIONS, LIGHT_SURFACE_TEXT_FILL } from "../../common/MotionMatchButtonOptions.js";
 import { MotionMatchPanel } from "../../common/MotionMatchPanel.js";
@@ -25,14 +24,12 @@ import type { MotionMatchModel } from "../model/MotionMatchModel.js";
 import { PositionSourceType } from "../model/PositionSource.js";
 import { RunState } from "../model/RunState.js";
 
-const BUTTON_FONT = new PhetFont(15);
 const SCORE_FONT = new PhetFont({ size: 26, weight: "bold" });
 const MESSAGE_FONT = new PhetFont(14);
 
 export class RunControl extends MotionMatchPanel {
   /** Exposed so the ScreenView can order them in the PDOM. */
-  public readonly startButton: RectangularPushButton;
-  public readonly stopButton: RectangularPushButton;
+  public readonly playPauseButton: PlayPauseButton;
   public readonly tryAgainButton: RectangularPushButton;
 
   private readonly disposeRunControl: () => void;
@@ -41,37 +38,52 @@ export class RunControl extends MotionMatchPanel {
     const strings = StringManager.getInstance();
     const runStrings = strings.getRunStrings();
 
-    // Three buttons in one slot rather than one relabelled button: a screen
-    // reader then announces a stable name for each action instead of a control
-    // whose identity changes underneath the user.
-    const isReadyProperty = new DerivedProperty([model.runStateProperty], (state) => state === RunState.READY);
-    const isRecordingProperty = new DerivedProperty([model.runStateProperty], (state) => state === RunState.RECORDING);
     const isScoredProperty = new DerivedProperty([model.runStateProperty], (state) => state === RunState.SCORED);
     const isCountingDownProperty = new DerivedProperty(
       [model.runStateProperty],
       (state) => state === RunState.COUNTDOWN,
     );
 
-    const startButton = new RectangularPushButton({
+    const isPlayingProperty = new BooleanProperty(false);
+    const showPlayPauseProperty = new DerivedProperty(
+      [model.runStateProperty],
+      (state) => state === RunState.READY || state === RunState.COUNTDOWN || state === RunState.RECORDING,
+    );
+    const playPauseEnabledProperty = new DerivedProperty(
+      [model.canStartProperty, model.runStateProperty],
+      (canStart, state) => canStart || state === RunState.COUNTDOWN || state === RunState.RECORDING,
+    );
+    const playPauseButton = new PlayPauseButton(isPlayingProperty, {
       ...FLAT_PANEL_PUSH_BUTTON_OPTIONS,
-      content: new Text(runStrings.startStringProperty, { font: BUTTON_FONT, fill: LIGHT_SURFACE_TEXT_FILL }),
-      listener: () => model.startRun(),
-      accessibleName: a11y.controls.startButtonStringProperty,
-      visibleProperty: isReadyProperty,
-      enabledProperty: model.canStartProperty,
+      radius: 22,
+      startPlayingAccessibleName: a11y.controls.startButtonStringProperty,
+      endPlayingAccessibleName: a11y.controls.stopButtonStringProperty,
+      visibleProperty: showPlayPauseProperty,
+      enabledProperty: playPauseEnabledProperty,
     });
 
-    const stopButton = new RectangularPushButton({
-      ...FLAT_PANEL_PUSH_BUTTON_OPTIONS,
-      content: new Text(runStrings.stopStringProperty, { font: BUTTON_FONT, fill: LIGHT_SURFACE_TEXT_FILL }),
-      listener: () => model.stopRun(),
-      accessibleName: a11y.controls.stopButtonStringProperty,
-      visibleProperty: isRecordingProperty,
-    });
+    const playingListener = (isPlaying: boolean) => {
+      if (isPlaying) {
+        model.startRun();
+      } else if (model.runStateProperty.value === RunState.COUNTDOWN) {
+        model.abandonRun();
+      } else if (model.runStateProperty.value === RunState.RECORDING) {
+        model.stopRun();
+      }
+    };
+    isPlayingProperty.lazyLink(playingListener);
+
+    const stateListener = (state: string) => {
+      isPlayingProperty.value = state === RunState.COUNTDOWN || state === RunState.RECORDING;
+    };
+    model.runStateProperty.link(stateListener);
 
     const tryAgainButton = new RectangularPushButton({
       ...FLAT_PANEL_PUSH_BUTTON_OPTIONS,
-      content: new Text(runStrings.tryAgainStringProperty, { font: BUTTON_FONT, fill: LIGHT_SURFACE_TEXT_FILL }),
+      content: new Text(runStrings.tryAgainStringProperty, {
+        font: new PhetFont(15),
+        fill: LIGHT_SURFACE_TEXT_FILL,
+      }),
       listener: () => model.abandonRun(),
       accessibleName: a11y.controls.tryAgainButtonStringProperty,
       visibleProperty: isScoredProperty,
@@ -87,20 +99,6 @@ export class RunControl extends MotionMatchPanel {
       font: SCORE_FONT,
       fill: MotionMatchColors.accentColorProperty,
       visibleProperty: isCountingDownProperty,
-      maxWidth: CONTROL_PANEL_WIDTH - 40,
-    });
-
-    // PatternStringProperty needs a number, and the score is null between runs;
-    // 0 is a safe stand-in because the readout is hidden unless a score exists.
-    const scoreNumberProperty = new DerivedProperty([model.scoreProperty], (score) => score ?? 0);
-    const scoreStringProperty = new PatternStringProperty(runStrings.scorePatternStringProperty, {
-      score: scoreNumberProperty,
-    });
-    const hasScoreProperty = new DerivedProperty([model.scoreProperty], (score) => score !== null);
-    const scoreText = new Text(scoreStringProperty, {
-      font: SCORE_FONT,
-      fill: MotionMatchColors.accentColorProperty,
-      visibleProperty: hasScoreProperty,
       maxWidth: CONTROL_PANEL_WIDTH - 40,
     });
 
@@ -124,29 +122,28 @@ export class RunControl extends MotionMatchPanel {
         spacing: 10,
         preferredWidth: CONTROL_PANEL_WIDTH - 24,
         stretch: false,
-        children: [startButton, stopButton, tryAgainButton, countdownText, scoreText, connectFirstText],
+        children: [playPauseButton, tryAgainButton, countdownText, connectFirstText],
       }),
       { minWidth: CONTROL_PANEL_WIDTH },
     );
 
-    this.startButton = startButton;
-    this.stopButton = stopButton;
+    this.playPauseButton = playPauseButton;
     this.tryAgainButton = tryAgainButton;
 
     this.disposeRunControl = () => {
       for (const property of [
-        isReadyProperty,
-        isRecordingProperty,
         isScoredProperty,
         isCountingDownProperty,
+        showPlayPauseProperty,
+        playPauseEnabledProperty,
         countdownProperty,
-        scoreNumberProperty,
-        scoreStringProperty,
-        hasScoreProperty,
         needsSensorProperty,
       ]) {
         property.dispose();
       }
+      model.runStateProperty.unlink(stateListener);
+      isPlayingProperty.unlink(playingListener);
+      isPlayingProperty.dispose();
     };
   }
 

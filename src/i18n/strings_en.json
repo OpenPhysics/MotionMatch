@@ -17,6 +17,8 @@
   },
   "profileLabelPattern": "{{letter}} — {{description}}",
   "chooseCurve": "Choose a curve",
+  "motionDiagram": "Motion diagram · dots every 0.5 s",
+  "showMotionDiagram": "Show motion diagram",
   "graphMode": {
     "position": "Position",
     "velocity": "Velocity"
@@ -54,7 +56,8 @@
     "title": "Simulation",
     "matchTolerance": "Match tolerance (m)",
     "matchToleranceDescription": "How far from the target curve still counts as a match. The band drawn around the curve grows and shrinks with this value.",
-    "showDiagnostics": "Show sensor diagnostics"
+    "showDiagnostics": "Show sensor diagnostics",
+    "showMotionDescriptions": "Show descriptive motion hints in the curve menu"
   },
   "a11y": {
     "simulation": {

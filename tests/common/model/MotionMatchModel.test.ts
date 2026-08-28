@@ -6,7 +6,7 @@
  * sample count, early stop — follows from the same state machine.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GraphMode } from "../../../src/common/model/GraphMode.js";
 import { MotionMatchModel } from "../../../src/common/model/MotionMatchModel.js";
 import { PointerPositionSource } from "../../../src/common/model/PointerPositionSource.js";
@@ -50,6 +50,24 @@ describe("MotionMatchModel", () => {
     expect(model.scoreProperty.value).not.toBeNull();
   });
 
+  it("samples the source only from Start through the end of the run", () => {
+    const startSampling = vi.spyOn(source, "startSampling");
+    const stopSampling = vi.spyOn(source, "stopSampling");
+    model.startRun();
+    expect(startSampling).toHaveBeenCalledOnce();
+    expect(stopSampling).not.toHaveBeenCalled();
+
+    advance(model, COUNTDOWN_S + RUN_DURATION_S);
+    expect(stopSampling).toHaveBeenCalledOnce();
+  });
+
+  it("stops sampling when a run is abandoned during preparation", () => {
+    const stopSampling = vi.spyOn(source, "stopSampling");
+    model.startRun();
+    model.abandonRun();
+    expect(stopSampling).toHaveBeenCalledOnce();
+  });
+
   it("counts down whole seconds while waiting", () => {
     model.startRun();
     expect(model.countdownProperty.value).toBe(COUNTDOWN_S);
@@ -61,6 +79,19 @@ describe("MotionMatchModel", () => {
     model.startRun();
     advance(model, COUNTDOWN_S + RUN_DURATION_S);
     expect(model.getTraceSamples()).toHaveLength(RUN_DURATION_S / SAMPLE_PERIOD_S);
+  });
+
+  it("updates a provisional score throughout the official run", () => {
+    source.walkerPositionProperty.value = model.profileProperty.value.position(0);
+    model.startRun();
+    expect(model.scoreProperty.value).toBeNull();
+
+    advance(model, COUNTDOWN_S);
+    expect(model.scoreProperty.value).toBe(100);
+
+    source.walkerPositionProperty.value = 2;
+    advance(model, 1);
+    expect(model.scoreProperty.value).toBeLessThan(100);
   });
 
   it("shows an unscored trace during the three-second preparation period", () => {

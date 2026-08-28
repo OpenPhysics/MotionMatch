@@ -29,6 +29,7 @@ export class SimulationScreen extends Screen<SimulationModel, MotionMatchScreenV
         new MotionMatchScreenView(model, {
           a11y: StringManager.getInstance().getSimulationA11yStrings(),
           writablePositionProperty: model.pointerSource.walkerPositionProperty,
+          showMotionDescriptionsProperty: preferences.showMotionDescriptionsProperty,
           screenSummaryContent: new SimulationScreenSummaryContent(model),
           tandem: options.tandem.createTandem("view"),
         }),

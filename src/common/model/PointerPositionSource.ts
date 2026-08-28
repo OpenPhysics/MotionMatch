@@ -44,6 +44,14 @@ export class PointerPositionSource implements TPositionSource {
     return this.availableProperty;
   }
 
+  public startSampling(): void {
+    // Pointer position is already updated directly by input listeners.
+  }
+
+  public stopSampling(): void {
+    // Pointer position requires no acquisition to stop.
+  }
+
   /** No-op: the walker moves only when the student moves it. */
   public step(_dt: number): void {
     // intentionally empty
