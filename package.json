@@ -1,16 +1,15 @@
 {
-  "name": "scenerystack-template",
+  "name": "motion-match",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "GitHub template for OpenPhysics SceneryStack sims (rename + scaffold-screens for one or N screens).",
+  "description": "Match a target position-vs-time or velocity-vs-time graph by moving a character with the mouse, or by walking in front of a PASCO Wireless Motion Sensor over Web Bluetooth.",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/OpenPhysics/SceneryStackTemplate.git"
+    "url": "https://github.com/OpenPhysics/MotionMatch.git"
   },
   "keywords": [
-    "template",
     "simulation",
     "SceneryStack",
     "interactive",
@@ -42,12 +41,14 @@
     "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "dependencies": {
+    "pasco-ble": "^0.3.65",
     "scenerystack": "^3.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
+    "@types/web-bluetooth": "^0.0.21",
     "happy-dom": "^20.11.2",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",

@@ -1,5 +1,5 @@
 /**
- * SimNamespace.ts
+ * MotionMatchNamespace.ts
  *
  * The SceneryStack Namespace for this simulation. It is used as the first
  * argument to ProfileColorProperty (so color names are scoped to this sim)
@@ -11,6 +11,6 @@
  */
 import { Namespace } from "scenerystack/phet-core";
 
-const SimNamespace = new Namespace("scenerystack-template");
+const MotionMatchNamespace = new Namespace("motion-match");
 
-export default SimNamespace;
+export default MotionMatchNamespace;

@@ -1,5 +1,5 @@
 /**
- * SimScreenView.ts
+ * SimulationScreenView.ts
  *
  * The top-level view for the simulation screen.
  *
@@ -9,7 +9,7 @@
  *   - Override step(dt) for frame-by-frame animation
  *
  * ── Adding content ────────────────────────────────────────────────────────────
- * 1. Create Node subclasses in separate files (e.g. SimControlPanel.ts)
+ * 1. Create Node subclasses in separate files (e.g. MotionMatchControlPanel.ts)
  * 2. Instantiate them here and call this.addChild(...)
  * 3. Link them to model properties:
  *      model.isRunningProperty.link( isRunning => { ... } );
@@ -24,23 +24,23 @@ import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { Node, Rectangle, Text } from "scenerystack/scenery";
 import { ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
-import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/SimButtonOptions.js";
-import SimColors from "../../SimColors.js";
-import { SCREEN_VIEW_MARGIN } from "../../SimConstants.js";
-import type { SimModel } from "../model/SimModel.js";
-import { SimScreenSummaryContent } from "./SimScreenSummaryContent.js";
+import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/MotionMatchButtonOptions.js";
+import MotionMatchColors from "../../MotionMatchColors.js";
+import { SCREEN_VIEW_MARGIN } from "../../MotionMatchConstants.js";
+import type { SimulationModel } from "../model/SimulationModel.js";
+import { SimulationScreenSummaryContent } from "./SimulationScreenSummaryContent.js";
 
-export type SimScreenViewOptions = ScreenViewOptions;
+export type SimulationScreenViewOptions = ScreenViewOptions;
 
-export class SimScreenView extends ScreenView {
-  public constructor(model: SimModel, providedOptions?: SimScreenViewOptions) {
+export class SimulationScreenView extends ScreenView {
+  public constructor(model: SimulationModel, providedOptions?: SimulationScreenViewOptions) {
     // ── Accessibility: screen summary ───────────────────────────────────────────
     // The screen summary is the first thing a screen-reader user encounters. It
     // is registered here, in the ScreenView's super() options, so every sim wires
-    // it the same way. See SimScreenSummaryContent for the four content regions.
-    const options = optionize<SimScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
+    // it the same way. See SimulationScreenSummaryContent for the four content regions.
+    const options = optionize<SimulationScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
       {
-        screenSummaryContent: new SimScreenSummaryContent(model),
+        screenSummaryContent: new SimulationScreenSummaryContent(model),
       },
       providedOptions,
     );
@@ -50,15 +50,15 @@ export class SimScreenView extends ScreenView {
     // A full-screen rectangle that follows the active color profile.
     // Replace or remove once you add real content.
     const backgroundRect = new Rectangle(0, 0, this.layoutBounds.width, this.layoutBounds.height, {
-      fill: SimColors.backgroundColorProperty,
+      fill: MotionMatchColors.backgroundColorProperty,
     });
     this.addChild(backgroundRect);
 
     // ── Placeholder label ─────────────────────────────────────────────────────
     // Replace this with your actual simulation content.
-    const placeholderText = new Text("SceneryStack Template", {
+    const placeholderText = new Text("Simulation", {
       font: "bold 36px sans-serif",
-      fill: SimColors.textColorProperty,
+      fill: MotionMatchColors.textColorProperty,
       center: this.layoutBounds.center,
     });
     this.addChild(placeholderText);
@@ -71,7 +71,7 @@ export class SimScreenView extends ScreenView {
     // option; a draggable plain Node needs `tagName: "div", focusable: true` too.
     // Example (uncomment and adapt when you add a real control):
     //
-    //   const a11y = StringManager.getInstance().getA11yStrings();
+    //   const a11y = StringManager.getInstance().getSimulationA11yStrings();
     //   const exampleButton = new RectangularPushButton({
     //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
     //     content: someIcon,
@@ -132,7 +132,7 @@ export class SimScreenView extends ScreenView {
   // DerivedProperty / Multilink / Property.link against model state, keep the
   // references and tear them down — forks copy what they see. Pattern:
   //
-  // private readonly disposeSimScreenView: () => void;
+  // private readonly disposeSimulationScreenView: () => void;
   //
   // // in the constructor, after creating the listeners:
   // const statusMultilink = Multilink.multilink(
@@ -142,18 +142,18 @@ export class SimScreenView extends ScreenView {
   // const detailsProperty = new DerivedProperty(
   //   [model.stateProperty],
   //   (state) => `State: ${state}`,
-  // ); // → pass as currentDetailsContent in SimScreenSummaryContent
+  // ); // → pass as currentDetailsContent in SimulationScreenSummaryContent
   // const onExternal = (v: number) => { /* … */ };
   // model.externalProperty.link(onExternal); // Property you do NOT own
   //
-  // this.disposeSimScreenView = () => {
+  // this.disposeSimulationScreenView = () => {
   //   statusMultilink.dispose();                 // Multilink you created
   //   detailsProperty.dispose();                 // DerivedProperty you created
   //   model.externalProperty.unlink(onExternal); // undo external link
   // };
   //
   // public override dispose(): void {
-  //   this.disposeSimScreenView();
+  //   this.disposeSimulationScreenView();
   //   super.dispose();
   // }
 }

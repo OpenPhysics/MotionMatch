@@ -1,4 +1,4 @@
-# Improvement Recommendations — SceneryStack Template
+# Improvement Recommendations — Motion Match
 
 Non-test recommendations for `SceneryStackTemplate/`, grouped by impact. Each item
 references the concrete file(s) involved so an editor (human or agent) can act
@@ -44,9 +44,9 @@ in `CLAUDE.md`.
 ### 4. `rename-sim.ts` replacement table is order-fragile
 
 `scripts/rename-sim.ts` `REPLACEMENTS` relies on "longest first" with overlapping
-prefixes (`Sim` → `SimColors` → `SimConstants`). It works today only because the
+prefixes (`Sim` → `MotionMatchColors` → `MotionMatchConstants`). It works today only because the
 bare token `Sim` is not in the list, but adding it (a common request) would
-silently corrupt every `SimColors`/`SimConstants` occurrence. Either:
+silently corrupt every `MotionMatchColors`/`MotionMatchConstants` occurrence. Either:
 
 - Add a comment enforcing the invariant at the top of `REPLACEMENTS`, or
 - Switch class-token replacements to `\b`-bounded regex matches.
@@ -75,15 +75,15 @@ to the upstream issue) so the cleanup is actionable rather than forgotten.
 `src/i18n/StringManager.ts`:
 
 - `getTitleStringProperty()` is explicitly typed `ReadOnlyProperty<string>`.
-- `getA11yStrings()` and `getPreferences()` return inferred JSON types.
+- `getSimulationA11yStrings()` and `getPreferences()` return inferred JSON types.
 
 Renaming a locale key today silently renames the public API exposed to views
 with no compile error at the call site. Add explicit return types (or run the
 JSON through a `satisfies` shape) so a key rename surfaces as a type error.
 
-### 8. No dispose-pattern reference in `SimScreenView`
+### 8. No dispose-pattern reference in `SimulationScreenView`
 
-`src/sim-screen/view/SimScreenView.ts` is billed (in `CLAUDE.md`) as the
+`src/simulation/view/SimulationScreenView.ts` is billed (in `CLAUDE.md`) as the
 "canonical accessibility reference," and its header comment instructs forks to
 turn `currentDetailsContent` into a live `DerivedProperty` — with no example of
 unlinking it. Ship a commented `public override dispose()` stub demonstrating
@@ -115,7 +115,7 @@ const WORKBOX_MAX_FILE_BYTES = 12 * 1024 * 1024; // SceneryStack bundles exceed 
 `vite.config.ts` manifest lacks `id`, `categories`, `screenshots`, and
 `display_override`. For a template that others copy:
 
-- add `id: "scenerystack-template"`,
+- add `id: "motion-match"`,
 - add `categories: ["education", "science"]`,
 - add a `screenshots` array (improves the install prompt on Android/desktop),
 - add `display_override: ["window-controls-overlay", "standalone"]`.
@@ -137,9 +137,9 @@ tests are samples; real sims should append `&& npm test`."
 A template repo especially benefits from a green CI badge at the top of
 `README.md` — forks will copy the convention.
 
-### 14. `SimKeyboardHelpContent` ships only `BasicActionsKeyboardHelpSection`
+### 14. `SimulationKeyboardHelpContent` ships only `BasicActionsKeyboardHelpSection`
 
-`src/sim-screen/view/SimKeyboardHelpContent.ts` constructs
+`src/simulation/view/SimulationKeyboardHelpContent.ts` constructs
 `TwoColumnKeyboardHelpContent([basic], [])`. Since this is the a11y reference,
 pre-stub a second column (slider help or a hotkeys section) commented out, so
 forks see the pattern instead of inventing it.

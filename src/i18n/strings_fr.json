@@ -1,17 +1,31 @@
 {
-  "title": "Modèle de Simulation",
+  "title": "Motion Match",
   "screens": {
-    "sim": "Sim"
+    "simulation": "Simulation",
+    "sensor": "Motion Sensor"
   },
   "a11y": {
-    "screenSummary": {
-      "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
-      "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
-      "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+    "simulation": {
+      "screenSummary": {
+        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
+        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
+        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+      },
+      "currentDetails": "La simulation est dans son état initial.",
+      "controls": {
+        "exampleControl": "Contrôle d'exemple"
+      }
     },
-    "currentDetails": "La simulation est dans son état initial.",
-    "controls": {
-      "exampleControl": "Contrôle d'exemple"
+    "sensor": {
+      "screenSummary": {
+        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
+        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
+        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+      },
+      "currentDetails": "La simulation est dans son état initial.",
+      "controls": {
+        "exampleControl": "Contrôle d'exemple"
+      }
     }
   },
   "preferences": {

@@ -22,23 +22,28 @@ import "./brand.js";
 import { onReadyToLaunch, PreferencesModel, Sim } from "scenerystack/sim";
 import { Tandem } from "scenerystack/tandem";
 import { StringManager } from "./i18n/StringManager.js";
-import { SimPreferencesModel } from "./preferences/SimPreferencesModel.js";
-import { SimPreferencesNode } from "./preferences/SimPreferencesNode.js";
-import SimColors from "./SimColors.js";
-import { SimScreen } from "./sim-screen/SimScreen.js";
+import MotionMatchColors from "./MotionMatchColors.js";
+import { MotionMatchPreferencesModel } from "./preferences/MotionMatchPreferencesModel.js";
+import { MotionMatchPreferencesNode } from "./preferences/MotionMatchPreferencesNode.js";
+import { MotionSensorScreen } from "./sensor/MotionSensorScreen.js";
+import { SimulationScreen } from "./simulation/SimulationScreen.js";
 
 onReadyToLaunch(() => {
   const stringManager = StringManager.getInstance();
 
-  // Simulation-specific preferences; initial values come from simQueryParameters.
-  const simPreferences = new SimPreferencesModel(Tandem.ROOT.createTandem("preferences"));
+  // Simulation-specific preferences; initial values come from motionMatchQueryParameters.
+  const simPreferences = new MotionMatchPreferencesModel(Tandem.ROOT.createTandem("preferences"));
 
   const screens = [
-    new SimScreen({
-      // The screen name Property updates automatically when the locale changes
-      name: stringManager.getScreenNames().simStringProperty,
-      tandem: Tandem.ROOT.createTandem("simScreen"),
-      backgroundColorProperty: SimColors.backgroundColorProperty,
+    new SimulationScreen({
+      name: stringManager.getScreenNames().simulationStringProperty,
+      tandem: Tandem.ROOT.createTandem("simulationScreen"),
+      backgroundColorProperty: MotionMatchColors.backgroundColorProperty,
+    }),
+    new MotionSensorScreen({
+      name: stringManager.getScreenNames().sensorStringProperty,
+      tandem: Tandem.ROOT.createTandem("sensorScreen"),
+      backgroundColorProperty: MotionMatchColors.backgroundColorProperty,
     }),
   ];
 
@@ -53,7 +58,7 @@ onReadyToLaunch(() => {
       simulationOptions: {
         customPreferences: [
           {
-            createContent: (tandem: Tandem) => new SimPreferencesNode(simPreferences, tandem),
+            createContent: (tandem: Tandem) => new MotionMatchPreferencesNode(simPreferences, tandem),
           },
         ],
       },
