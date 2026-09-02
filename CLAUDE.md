@@ -24,7 +24,8 @@ the profiles, the derivative relationship and the scoring rule are in
 | `src/common/model/scoring.ts` | Fraction-in-band score (pure) |
 | `src/common/model/motionMath.ts` | Least-squares derivative + windowed differentiator (pure) |
 | `src/common/model/PositionSource.ts` | `TPositionSource` — the seam between the two screens |
-| `src/common/model/MotionSensorSource.ts` | The PASCO link: lazy device, poll loop, never-rejecting connect |
+| `src/common/model/MotionSensorSource.ts` | The PASCO link: transport choice, sampling loop, never-rejecting connect |
+| `src/common/model/transportSupport.ts` | Whether this browser has Web Bluetooth / WebUSB at all |
 | `src/sensor/model/MotionSensorDevice.ts` | `TMotionSensorDevice` — the seam between the two transports |
 | `src/sensor/model/UsbMotionSensor.ts` | WebUSB sibling of `BluetoothMotionSensor`; same packets |
 | `src/common/view/MotionMatchScreenView.ts` | **One** ScreenView, used by both screens |
@@ -48,6 +49,11 @@ way to guarantee that.
   directly from the Connect button. Do not add an `await` ahead of it.
 - **`connect()` never rejects.** Outcomes land on Properties. A dismissed picker
   throws `DeviceSelectionCancelled` internally and is not shown as an error.
+- **A streaming device must be told to stop.** Clearing a timer silences a
+  polled sensor; a streamed one keeps its own clock until `STOP_SAMPLING`
+  arrives, and USB keeps it powered. `deviceIsSampling` (a stop is owed) is
+  deliberately separate from `draining` (the read loop is alive) — never merge
+  them.
 - **Never accumulate run time in a float.** Sample times are `index × period`.
   An earlier version drifted and ended runs a sample early; tests pin it.
 - **`dispose()` must stay idempotent** — axon Properties throw on double
@@ -71,9 +77,12 @@ Dependabot ignores those three names.
 
 ## Hardware testing
 
-Needs a PS-3219, Chrome/Edge/Opera, and HTTPS or `localhost`. There is no way to
-exercise the transport in CI, which is why everything above it is pure and unit
-tested.
+Needs a PS-3219, Chrome/Edge/Opera, and HTTPS or `localhost`. The panel offers
+one Connect button per transport the browser supports — Bluetooth and USB — so
+either can be tried without a query parameter; `?usbBringUp=probe` still claims
+a USB device and reports its descriptors without sending it anything. There is
+no way to exercise either transport in CI, which is why everything above them is
+pure and unit tested.
 
 ```bash
 npm start   # then open the Motion Sensor screen
@@ -82,7 +91,10 @@ npm start   # then open the Motion Sensor screen
 `?showDiagnostics=true` prints the device's measurement list and the raw value
 of every measurement each poll — the way to tell a genuine zero reading
 (nothing within 0.15–4 m to echo off) from a device answering nothing at all.
-`?pollIntervalMs=` raises the poll period when debugging a flaky link.
+`?sensorSampleRateHz=` sets how often a reading is taken, 5–50 Hz; the same
+number is a slider in Preferences → Simulation, and changing it re-times a run
+already in flight. `?sensorStreaming=false` forces polling on a transport that
+would otherwise keep the device's own clock (USB does; Bluetooth cannot).
 `?sensorRange=short` asks the device for its close-range receiver setting; the
 default `long` is what it powers up on, so the default path sends no range
 command at all. The command was recovered from SPARKvue's WebAssembly build, not

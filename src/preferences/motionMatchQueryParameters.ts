@@ -17,9 +17,10 @@
 import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
 import {
-  DEFAULT_POLL_INTERVAL_MS,
   DEFAULT_POSITION_TOLERANCE_M,
+  DEFAULT_SENSOR_SAMPLE_RATE_HZ,
   POSITION_TOLERANCE_RANGE_M,
+  SENSOR_SAMPLE_RATE_RANGE_HZ,
 } from "../MotionMatchConstants.js";
 import MotionMatchNamespace from "../MotionMatchNamespace.js";
 
@@ -46,13 +47,15 @@ const motionMatchQueryParameters = QueryStringMachine.getAll({
   },
 
   /**
-   * How often to poll the sensor, in milliseconds. Lower is more responsive and
-   * more likely to saturate the BLE link; raise it when debugging a flaky one.
+   * How often to take a reading from the sensor, in hertz. Lower is gentler on
+   * a flaky link; higher is more responsive and more likely to saturate one.
+   * Also editable at runtime in Preferences → Simulation.
    */
-  pollIntervalMs: {
+  sensorSampleRateHz: {
     type: "number",
-    defaultValue: DEFAULT_POLL_INTERVAL_MS,
-    isValidValue: (value: number) => value >= 10 && value <= 1000,
+    defaultValue: DEFAULT_SENSOR_SAMPLE_RATE_HZ,
+    isValidValue: (value: number) => SENSOR_SAMPLE_RATE_RANGE_HZ.contains(value),
+    public: true,
   },
 
   /**
@@ -69,26 +72,14 @@ const motionMatchQueryParameters = QueryStringMachine.getAll({
   },
 
   /**
-   * How to reach the PS-3219. `usb` uses WebUSB against PASCO's vendor ID and
-   * needs the sensor plugged into the machine running the browser; `bluetooth`
-   * is the default and the only path that has been used with students.
+   * Let a transport that can carry a stream put the device on its own clock at
+   * the sample rate above, instead of paying a round trip per reading. USB can;
+   * Bluetooth cannot and polls regardless. False forces polling everywhere,
+   * which is the fallback when a device dislikes being asked to stream.
    */
-  sensorTransport: {
-    type: "string",
-    defaultValue: "bluetooth",
-    validValues: ["bluetooth", "usb"],
-  },
-
-  /**
-   * Put the device on its own clock at this rate instead of polling it, which
-   * removes the round-trip jitter a poll cannot avoid. Needs a transport that
-   * carries the stream, so USB only; Bluetooth ignores it and keeps polling.
-   * Zero, the default, polls everywhere and is what students run.
-   */
-  sensorSampleRateHz: {
-    type: "number",
-    defaultValue: 0,
-    isValidValue: (value: number) => value === 0 || (value >= 1 && value <= 250),
+  sensorStreaming: {
+    type: "boolean",
+    defaultValue: true,
   },
 
   /**

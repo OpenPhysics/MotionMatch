@@ -83,7 +83,8 @@ export type ScreenA11yStrings = {
 /** The Motion Sensor screen's block: the shared shape plus the link controls. */
 export type SensorA11yStrings = ScreenA11yStrings & {
   readonly controls: {
-    readonly connectButtonStringProperty: ReadOnlyProperty<string>;
+    readonly connectBluetoothButtonStringProperty: ReadOnlyProperty<string>;
+    readonly connectUsbButtonStringProperty: ReadOnlyProperty<string>;
     readonly disconnectButtonStringProperty: ReadOnlyProperty<string>;
   };
 };

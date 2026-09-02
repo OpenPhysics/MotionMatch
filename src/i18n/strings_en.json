@@ -43,14 +43,15 @@
     "connectFirst": "Connect a sensor to start"
   },
   "sensor": {
-    "connect": "Connect Sensor",
+    "connectBluetooth": "Connect by Bluetooth",
+    "connectUsb": "Connect by USB",
     "disconnect": "Disconnect",
     "statusDisconnected": "Disconnected",
     "statusConnecting": "Connecting…",
     "statusConnected": "Connected",
     "statusError": "Connection problem",
     "lostConnection": "The sensor disconnected.",
-    "unavailableInsecure": "Web Bluetooth needs a secure page. Open this simulation over HTTPS, or on localhost.",
+    "unavailableInsecure": "Connecting to the sensor needs a secure page. Open this simulation over HTTPS, or on localhost.",
     "unavailableBrowser": "This browser cannot connect to the sensor. Use Chrome, Edge, or Opera.",
     "rawPositionPattern": "Sensor: {{position}} m"
   },
@@ -59,7 +60,9 @@
     "matchTolerance": "Match tolerance (m)",
     "matchToleranceDescription": "How far from the target curve still counts as a match. The band drawn around the curve grows and shrinks with this value.",
     "showDiagnostics": "Show sensor diagnostics",
-    "showMotionDescriptions": "Show descriptive motion hints in the curve menu"
+    "showMotionDescriptions": "Show descriptive motion hints in the curve menu",
+    "sensorSampleRate": "Sensor sample rate (Hz)",
+    "sensorSampleRateDescription": "How often the Motion Sensor screen takes a reading from the device. Lower it if a link keeps dropping; raise it for a crisper trace."
   },
   "a11y": {
     "simulation": {
@@ -102,7 +105,8 @@
       "controls": {
         "walker": "Sensor reading",
         "walkerHelp": "This marker follows the motion sensor. Walk toward or away from the sensor to move it.",
-        "connectButton": "Connect to a PASCO wireless motion sensor",
+        "connectBluetoothButton": "Connect to a PASCO wireless motion sensor over Bluetooth",
+        "connectUsbButton": "Connect to a PASCO motion sensor plugged in over USB",
         "disconnectButton": "Disconnect the motion sensor",
         "profileComboBox": "Target curve",
         "profileComboBoxHelp": "Pick which of the nine motion graphs to match.",

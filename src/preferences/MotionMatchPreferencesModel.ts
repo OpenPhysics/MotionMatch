@@ -8,7 +8,7 @@
 
 import { BooleanProperty, NumberProperty } from "scenerystack/axon";
 import type { Tandem } from "scenerystack/tandem";
-import { POSITION_TOLERANCE_RANGE_M } from "../MotionMatchConstants.js";
+import { POSITION_TOLERANCE_RANGE_M, SENSOR_SAMPLE_RATE_RANGE_HZ } from "../MotionMatchConstants.js";
 import MotionMatchNamespace from "../MotionMatchNamespace.js";
 import motionMatchQueryParameters from "./motionMatchQueryParameters.js";
 
@@ -19,6 +19,13 @@ export class MotionMatchPreferencesModel {
    * rather than a silent thumb on the scale.
    */
   public readonly positionToleranceProperty: NumberProperty;
+
+  /**
+   * How often the Motion Sensor screen takes a reading, in hertz — by polling,
+   * or as the rate the device is asked to keep when it streams. Live: a change
+   * re-times an in-flight run rather than waiting for the next connection.
+   */
+  public readonly sensorSampleRateProperty: NumberProperty;
 
   /** Whether to show raw sensor readings on the Motion Sensor screen. */
   public readonly showDiagnosticsProperty: BooleanProperty;
@@ -31,6 +38,12 @@ export class MotionMatchPreferencesModel {
       range: POSITION_TOLERANCE_RANGE_M,
       units: "m",
       ...(tandem ? { tandem: tandem.createTandem("positionToleranceProperty") } : {}),
+    });
+
+    this.sensorSampleRateProperty = new NumberProperty(motionMatchQueryParameters.sensorSampleRateHz, {
+      range: SENSOR_SAMPLE_RATE_RANGE_HZ,
+      units: "Hz",
+      ...(tandem ? { tandem: tandem.createTandem("sensorSampleRateProperty") } : {}),
     });
 
     this.showDiagnosticsProperty = new BooleanProperty(
@@ -46,6 +59,7 @@ export class MotionMatchPreferencesModel {
 
   public reset(): void {
     this.positionToleranceProperty.reset();
+    this.sensorSampleRateProperty.reset();
     this.showDiagnosticsProperty.reset();
     this.showMotionDescriptionsProperty.reset();
   }

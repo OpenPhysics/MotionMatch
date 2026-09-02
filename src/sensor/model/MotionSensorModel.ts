@@ -8,13 +8,11 @@
  */
 
 import { MotionMatchModel } from "../../common/model/MotionMatchModel.js";
-import { MotionSensorSource, SensorTransport } from "../../common/model/MotionSensorSource.js";
+import { MotionSensorSource } from "../../common/model/MotionSensorSource.js";
 import { PositionSourceType } from "../../common/model/PositionSource.js";
 import type { MotionMatchPreferencesModel } from "../../preferences/MotionMatchPreferencesModel.js";
 import motionMatchQueryParameters from "../../preferences/motionMatchQueryParameters.js";
 import { MotionRange, type MotionRangeValue } from "./PascoMotionProtocol.js";
-
-const MICROSECONDS_PER_SECOND = 1_000_000;
 
 const RANGE_BY_NAME: Record<string, MotionRangeValue | undefined> = {
   short: MotionRange.SHORT,
@@ -26,17 +24,17 @@ export class MotionSensorModel extends MotionMatchModel {
   public readonly sensorSource: MotionSensorSource;
 
   public constructor(preferences: MotionMatchPreferencesModel) {
-    const sampleRateHz = motionMatchQueryParameters.sensorSampleRateHz;
     const usbBringUp = motionMatchQueryParameters.usbBringUp;
     const source = new MotionSensorSource({
-      pollIntervalMs: motionMatchQueryParameters.pollIntervalMs,
+      // The preference, not its query parameter: the rate is editable while the
+      // sim runs, and the source re-times itself when it changes.
+      sampleRateProperty: preferences.sensorSampleRateProperty,
       // "device" leaves the sensor on its power-up range and sends no command
       // at all, so a connection costs exactly one exchange fewer.
       range: RANGE_BY_NAME[motionMatchQueryParameters.sensorRange ?? "device"] ?? null,
-      transport: motionMatchQueryParameters.sensorTransport === "usb" ? SensorTransport.USB : SensorTransport.BLUETOOTH,
+      streamingEnabled: motionMatchQueryParameters.sensorStreaming,
       usbProbeOnly: usbBringUp === "probe" || usbBringUp === "probeAll",
       usbAcceptAllDevices: usbBringUp === "all" || usbBringUp === "probeAll",
-      samplePeriodMicroseconds: sampleRateHz > 0 ? MICROSECONDS_PER_SECOND / sampleRateHz : null,
       diagnosticsEnabledProperty: preferences.showDiagnosticsProperty,
     });
     super({

@@ -59,6 +59,13 @@ const READ_DEADLINE_MS = 500;
 const MINIMUM_PACKET_BYTES = 5;
 
 /**
+ * Consecutive failed reads the stream tolerates before the read loop gives up.
+ * One bad transfer among a hundred good ones should cost a sample, not the run;
+ * three in a row at a 500 ms deadline means the device has genuinely gone quiet.
+ */
+const STREAM_FAILURE_TOLERANCE = 3;
+
+/**
  * Vendor control requests the bridge wants before it will carry bulk traffic.
  * Captured from SPARKvue: it reads three descriptors and then writes one
  * enable, and until that enable arrives both endpoints stay completely silent.
@@ -95,7 +102,15 @@ export class UsbMotionSensor implements TMotionSensorDevice {
   private inEndpoint = 0;
   private outEndpoint = 0;
   private exchanging = false;
-  private streaming = false;
+  /**
+   * True from the moment START_SAMPLING goes out until STOP_SAMPLING does —
+   * the device's state, not the host's. Kept separate from {@link draining}
+   * because the read loop can end for reasons that leave the device happily
+   * ranging on its own clock, and only this flag says a stop is still owed.
+   */
+  private deviceIsSampling = false;
+  /** True while the read loop should keep draining what the device pushes. */
+  private draining = false;
 
   private readonly onUnexpectedDisconnect: () => void;
   private readonly handleDisconnect: (event: USBConnectionEvent) => void;
@@ -304,6 +319,10 @@ export class UsbMotionSensor implements TMotionSensorDevice {
   }
 
   public async disconnect(): Promise<void> {
+    // A device left on its own clock keeps ranging after the page lets go of
+    // it — USB goes on powering it — so the stop has to go out before the
+    // close, while there is still an endpoint to write it to.
+    await this.stopStreaming();
     const device = this.device;
     navigator.usb?.removeEventListener("disconnect", this.handleDisconnect);
     this.device = null;
@@ -345,45 +364,68 @@ export class UsbMotionSensor implements TMotionSensorDevice {
     periodMilliseconds: number,
     onSample: (echoTimeMicroseconds: number) => void,
   ): Promise<void> {
-    if (this.streaming) {
+    if (this.deviceIsSampling) {
       return;
     }
     await this.write(MOTION_SENSOR_SERVICE_ID, setSamplePeriodCommand(periodMilliseconds * 1000));
     await this.write(PASCO_DEVICE_SERVICE_ID, startSamplingCommand(periodMilliseconds));
-    this.streaming = true;
+    this.deviceIsSampling = true;
+    this.draining = true;
     this.log("streaming started at", periodMilliseconds, "ms");
     // Deliberately not awaited: the loop runs until stopStreaming, and it never
     // rejects, so there is nothing for a caller to wait on or handle.
     this.drainStream(onSample).catch(() => undefined);
   }
 
+  /**
+   * Takes the device off its own clock. Idempotent, and safe to call whatever
+   * the read loop is doing: the stop is owed as long as a start went out, so it
+   * is sent even when the loop has already given up. Never rejects.
+   */
   public async stopStreaming(): Promise<void> {
-    if (!this.streaming) {
+    this.draining = false;
+    if (!this.deviceIsSampling) {
       return;
     }
-    this.streaming = false;
+    this.deviceIsSampling = false;
     try {
       await this.write(PASCO_DEVICE_SERVICE_ID, stopSamplingCommand());
-    } catch {
-      // Nothing useful to do: the loop has already been told to stop, and a
-      // device that will not hear the command is one we are disconnecting from.
+    } catch (error) {
+      // Nothing useful to do: a device that will not hear the command is one we
+      // are disconnecting from, and it is out of ideas either way.
+      this.log("stop command failed:", error);
     }
   }
 
-  /** Reads until told to stop. Never rejects; a failure just ends the stream. */
+  /**
+   * Reads until told to stop. Never rejects.
+   *
+   * A single bad transfer — a short frame, a stall, a read that outran its
+   * deadline — is not the end of the stream: the device is on its own clock and
+   * the next sample is already on its way, so the loop tolerates
+   * {@link STREAM_FAILURE_TOLERANCE} in a row before giving up. Ending the loop
+   * does not stop the device; only `stopStreaming` does, which is why this never
+   * touches {@link deviceIsSampling}.
+   */
   private async drainStream(onSample: (echoTimeMicroseconds: number) => void): Promise<void> {
     let sinceAck = 0;
     let lastSequence = 0;
-    while (this.streaming && this.isConnected) {
+    let consecutiveFailures = 0;
+    while (this.draining && this.isConnected) {
       let body: Uint8Array;
       try {
         const transfer = await this.transferIn();
         this.diagnosticText = Array.from(transfer, (byte) => byte.toString(16).padStart(2, "0")).join(" ");
         body = usbPacketBody(transfer);
+        consecutiveFailures = 0;
       } catch (error) {
-        this.log("stream ended:", error);
-        this.streaming = false;
-        return;
+        consecutiveFailures += 1;
+        this.log(`stream read failed (${consecutiveFailures}):`, error);
+        if (consecutiveFailures >= STREAM_FAILURE_TOLERANCE) {
+          this.log("stream ended; the device is still sampling until stopStreaming");
+          this.draining = false;
+        }
+        continue;
       }
 
       const sample = decodeStreamPacket(body);
@@ -396,13 +438,19 @@ export class UsbMotionSensor implements TMotionSensorDevice {
       sinceAck += 1;
       if (sinceAck >= STREAM_ACK_INTERVAL) {
         sinceAck = 0;
+        // Checked again because `onSample` can end the run, and an
+        // acknowledgement arriving after the stop is the device's cue to keep
+        // sending.
+        if (!this.draining) {
+          return;
+        }
         try {
           await this.transferOut(
             usbWriteFrame(MOTION_SENSOR_SERVICE_ID, PASCO_CHARACTERISTIC.STREAM_ACK, streamAckCommand(lastSequence)),
           );
         } catch (error) {
           this.log("stream acknowledgement failed:", error);
-          this.streaming = false;
+          this.draining = false;
           return;
         }
       }

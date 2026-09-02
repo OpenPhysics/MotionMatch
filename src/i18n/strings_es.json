@@ -43,14 +43,15 @@
     "connectFirst": "Conecta un sensor para empezar"
   },
   "sensor": {
-    "connect": "Conectar sensor",
+    "connectBluetooth": "Conectar por Bluetooth",
+    "connectUsb": "Conectar por USB",
     "disconnect": "Desconectar",
     "statusDisconnected": "Desconectado",
     "statusConnecting": "Conectando…",
     "statusConnected": "Conectado",
     "statusError": "Problema de conexión",
     "lostConnection": "El sensor se desconectó.",
-    "unavailableInsecure": "Web Bluetooth necesita una página segura. Abre esta simulación con HTTPS o en localhost.",
+    "unavailableInsecure": "Conectarse al sensor necesita una página segura. Abre esta simulación con HTTPS o en localhost.",
     "unavailableBrowser": "Este navegador no puede conectarse al sensor. Usa Chrome, Edge u Opera.",
     "rawPositionPattern": "Sensor: {{position}} m"
   },
@@ -59,7 +60,9 @@
     "matchTolerance": "Tolerancia de coincidencia (m)",
     "matchToleranceDescription": "Cuánto puede alejarse de la curva objetivo y seguir contando como coincidencia. La banda dibujada alrededor de la curva cambia con este valor.",
     "showDiagnostics": "Mostrar diagnóstico del sensor",
-    "showMotionDescriptions": "Mostrar pistas descriptivas de movimiento en el menú de curvas"
+    "showMotionDescriptions": "Mostrar pistas descriptivas de movimiento en el menú de curvas",
+    "sensorSampleRate": "Frecuencia de muestreo del sensor (Hz)",
+    "sensorSampleRateDescription": "Con qué frecuencia la pantalla Sensor de movimiento toma una lectura del dispositivo. Bájala si el enlace se cae; súbela para una traza más nítida."
   },
   "a11y": {
     "simulation": {
@@ -102,7 +105,8 @@
       "controls": {
         "walker": "Lectura del sensor",
         "walkerHelp": "Este marcador sigue al sensor de movimiento. Acércate o aléjate del sensor para moverlo.",
-        "connectButton": "Conectar a un sensor de movimiento inalámbrico PASCO",
+        "connectBluetoothButton": "Conectar por Bluetooth a un sensor de movimiento inalámbrico PASCO",
+        "connectUsbButton": "Conectar a un sensor de movimiento PASCO enchufado por USB",
         "disconnectButton": "Desconectar el sensor de movimiento",
         "profileComboBox": "Curva objetivo",
         "profileComboBoxHelp": "Elige cuál de las nueve gráficas de movimiento reproducir.",

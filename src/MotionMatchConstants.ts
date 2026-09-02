@@ -125,11 +125,19 @@ export const CORNER_SMOOTHING_S = 0.4;
 // ── Sensor ────────────────────────────────────────────────────────────────────
 
 /**
- * How often the Motion Sensor screen asks the device for a position, in
- * milliseconds. Faster than {@link SAMPLE_PERIOD_S} so a fresh reading is always
+ * How often the Motion Sensor screen asks the device for a position, in hertz —
+ * by polling, or by asking the device to keep its own clock where the transport
+ * allows it. Faster than {@link SAMPLE_RATE_HZ} so a fresh reading is always
  * waiting when the model's fixed clock takes its sample.
  */
-export const DEFAULT_POLL_INTERVAL_MS = 40;
+export const DEFAULT_SENSOR_SAMPLE_RATE_HZ = 25;
+
+/**
+ * Bounds accepted for the sensor sample-rate preference, in hertz. The floor is
+ * below the model's own {@link SAMPLE_RATE_HZ}, which is the point: a link too
+ * slow to keep up is worth being able to see rather than only to suspect.
+ */
+export const SENSOR_SAMPLE_RATE_RANGE_HZ = new Range(5, 50);
 
 /**
  * Consecutive failed reads tolerated before the source declares an error. A
@@ -157,4 +165,6 @@ MotionMatchNamespace.register("MotionMatchConstants", {
   DEFAULT_POSITION_TOLERANCE_M,
   DEFAULT_VELOCITY_TOLERANCE_MPS,
   CORNER_SMOOTHING_S,
+  DEFAULT_SENSOR_SAMPLE_RATE_HZ,
+  SENSOR_SAMPLE_RATE_RANGE_HZ,
 });

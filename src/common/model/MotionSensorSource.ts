@@ -2,13 +2,16 @@
  * MotionSensorSource.ts
  *
  * The Motion Sensor screen's source: a PASCO Wireless Motion Sensor (PS-3219)
- * reached directly through Web Bluetooth using its small PASCO wire protocol.
+ * reached directly over Web Bluetooth or WebUSB using its small PASCO wire
+ * protocol.
  *
- * ── Polling by default, streaming on request ──────────────────────────────────
- * One `readEchoTime` is one round trip. Sampling begins only when a run starts
- * and stops when it ends, silencing the ultrasonic transducer in between while
- * leaving the connection ready. Given a rate and a transport that can carry it,
- * the device keeps time instead and pushes samples — see `startSampling`.
+ * ── Either transport, polled or streamed ──────────────────────────────────────
+ * Web Bluetooth and WebUSB carry the same PASCO packets, so `connect()` takes
+ * the transport as an argument and everything below this class is shared.
+ * Sampling begins only when a run starts and stops when it ends, silencing the
+ * ultrasonic transducer in between while leaving the connection ready. One
+ * `readEchoTime` is one round trip; where the transport can carry a stream the
+ * device keeps time itself instead and pushes samples — see `startSampling`.
  *
  * ── Errors never reach the caller ─────────────────────────────────────────────
  * `connect()` resolves even when it fails. Connection outcomes are UI state, not
@@ -20,7 +23,7 @@
 
 import { BooleanProperty, NumberProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import {
-  DEFAULT_POLL_INTERVAL_MS,
+  DEFAULT_SENSOR_SAMPLE_RATE_HZ,
   MAXIMUM_CONSECUTIVE_FAILURES,
   POSITION_MEASUREMENT,
   POSITION_RANGE_M,
@@ -41,24 +44,34 @@ export const SensorTransport = {
 
 export type SensorTransportValue = (typeof SensorTransport)[keyof typeof SensorTransport];
 
+/**
+ * How long a stream may say nothing before the run gives up on it and polls
+ * instead. Long enough to cover a slow first sample at the lowest rate the
+ * preference allows, short enough that a run of ten seconds still gets a trace.
+ */
+const STREAM_SILENCE_TIMEOUT_MS = 1000;
+
 export type MotionSensorSourceOptions = {
-  /** Poll period in milliseconds; overridable from a query parameter for bring-up. */
-  readonly pollIntervalMs?: number;
+  /**
+   * How often to take a reading, in hertz — the poll rate, or the rate the
+   * device is asked to keep when it is streaming. Live, because it is a
+   * preference: a change mid-run re-times sampling rather than waiting for the
+   * next connection.
+   */
+  readonly sampleRateProperty?: TReadOnlyProperty<number>;
   /**
    * Receiver range to ask the device for once connected, or null to leave it on
    * whatever it powered up with.
    */
   readonly range?: MotionRangeValue | null;
-  /** Which transport to reach the PS-3219 over. */
-  readonly transport?: SensorTransportValue;
+  /**
+   * Let a transport that can carry a stream put the device on its own clock.
+   * False polls everywhere; transports without a stream poll regardless.
+   */
+  readonly streamingEnabled?: boolean;
   /** USB bring-up switches; ignored on Bluetooth. */
   readonly usbProbeOnly?: boolean;
   readonly usbAcceptAllDevices?: boolean;
-  /**
-   * Stream at this period, in microseconds, instead of polling — or null to
-   * poll. Ignored by transports that cannot carry the stream.
-   */
-  readonly samplePeriodMicroseconds?: number | null;
   /**
    * When true, publishes the raw echo time and calculated position.
    */
@@ -95,32 +108,42 @@ export class MotionSensorSource implements TPositionSource {
 
   private readonly availableProperty: BooleanProperty;
 
-  private readonly pollIntervalMs: number;
+  private readonly sampleRateProperty: TReadOnlyProperty<number>;
+  /** Non-null only when no rate was supplied, and therefore ours to dispose. */
+  private readonly ownedSampleRateProperty: NumberProperty | null;
   private readonly range: MotionRangeValue | null;
-  private readonly transport: SensorTransportValue;
+  private readonly streamingEnabled: boolean;
   private readonly usbProbeOnly: boolean;
   private readonly usbAcceptAllDevices: boolean;
-  private readonly samplePeriodMicroseconds: number | null;
   private readonly diagnosticsEnabledProperty: TReadOnlyProperty<boolean> | null;
   private readonly handleUnexpectedDisconnect: () => void;
+  private readonly handleSampleRateChange: () => void;
 
   private device: TMotionSensorDevice | null = null;
 
   private pollTimerId: ReturnType<typeof setInterval> | null = null;
   private isPolling = false;
   private isStreaming = false;
+  /** Whether a run has asked for readings, whichever mechanism is serving it. */
+  private samplingRequested = false;
+  private streamWatchdogId: ReturnType<typeof setTimeout> | null = null;
+  private samplesSinceStreamStart = 0;
   /** Invalidates an asynchronous read if sampling stops while it is in flight. */
   private pollingGeneration = 0;
   private consecutiveFailures = 0;
   private diagnosticsStartTimeMs = 0;
 
   public constructor(providedOptions?: MotionSensorSourceOptions) {
-    this.pollIntervalMs = providedOptions?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    const providedSampleRateProperty = providedOptions?.sampleRateProperty;
+    this.ownedSampleRateProperty = providedSampleRateProperty
+      ? null
+      : new NumberProperty(DEFAULT_SENSOR_SAMPLE_RATE_HZ, { units: "Hz" });
+    // Non-null by construction: exactly one of the two above exists.
+    this.sampleRateProperty = providedSampleRateProperty ?? (this.ownedSampleRateProperty as NumberProperty);
     this.range = providedOptions?.range ?? null;
-    this.transport = providedOptions?.transport ?? SensorTransport.BLUETOOTH;
+    this.streamingEnabled = providedOptions?.streamingEnabled !== false;
     this.usbProbeOnly = providedOptions?.usbProbeOnly === true;
     this.usbAcceptAllDevices = providedOptions?.usbAcceptAllDevices === true;
-    this.samplePeriodMicroseconds = providedOptions?.samplePeriodMicroseconds ?? null;
     this.diagnosticsEnabledProperty = providedOptions?.diagnosticsEnabledProperty ?? null;
 
     this.sensorPositionProperty = new NumberProperty(0, { range: POSITION_RANGE_M, units: "m" });
@@ -137,6 +160,17 @@ export class MotionSensorSource implements TPositionSource {
       this.connectionStateProperty.value = ConnectionState.ERROR;
       this.errorMessageProperty.value = "disconnected";
     };
+
+    // A rate the student can change while a run is in flight has to take effect
+    // in that run; re-timing is a stop and a start, both of which are cheap and
+    // idempotent, and the trace keeps its own clock either way.
+    this.handleSampleRateChange = () => {
+      if (this.samplingRequested) {
+        this.stopSampling();
+        this.startSampling();
+      }
+    };
+    this.sampleRateProperty.lazyLink(this.handleSampleRateChange);
   }
 
   public get positionProperty(): TReadOnlyProperty<number> {
@@ -148,12 +182,15 @@ export class MotionSensorSource implements TPositionSource {
   }
 
   /**
-   * Opens the browser's device picker and connects. Never rejects.
+   * Opens the browser's device picker for the given transport and connects.
+   * Never rejects.
    *
+   * The transport is an argument rather than a constructor option because the
+   * panel offers both and the student picks one at the moment of connecting.
    * The device picker is invoked before the first await so the browser still
    * recognizes the Connect button's user gesture.
    */
-  public async connect(): Promise<void> {
+  public async connect(transport: SensorTransportValue = SensorTransport.BLUETOOTH): Promise<void> {
     if (this.connectionStateProperty.value === ConnectionState.CONNECTING) {
       return;
     }
@@ -162,7 +199,7 @@ export class MotionSensorSource implements TPositionSource {
     this.errorMessageProperty.value = null;
 
     const device: TMotionSensorDevice =
-      this.transport === SensorTransport.USB
+      transport === SensorTransport.USB
         ? new UsbMotionSensor(this.handleUnexpectedDisconnect, {
             probeOnly: this.usbProbeOnly,
             acceptAllDevices: this.usbAcceptAllDevices,
@@ -229,47 +266,88 @@ export class MotionSensorSource implements TPositionSource {
     this.connectionStateProperty.value = ConnectionState.DISCONNECTED;
   }
 
+  /** The sample period the preference asks for, in milliseconds. */
+  private get samplePeriodMs(): number {
+    return 1000 / this.sampleRateProperty.value;
+  }
+
   public startSampling(): void {
-    if (this.pollTimerId !== null || this.isStreaming || this.usbProbeOnly) {
+    if (this.samplingRequested || this.usbProbeOnly) {
       return;
     }
+    this.samplingRequested = true;
     this.diagnosticsStartTimeMs = performance.now();
 
     // Streaming lets the device keep time, which removes the round-trip jitter
-    // a poll cannot avoid. It needs both a requested rate and a transport that
-    // can carry it; anything else falls back to polling, which always works.
+    // a poll cannot avoid. It needs a transport that can carry the stream;
+    // anything else polls, which always works.
     const device = this.device;
-    if (this.samplePeriodMicroseconds !== null && device?.startStreaming) {
+    if (this.streamingEnabled && device?.startStreaming) {
       this.isStreaming = true;
+      this.samplesSinceStreamStart = 0;
+      // A device can accept the start command and then push nothing — the one
+      // failure a stream cannot report, because there is no round trip left to
+      // fail. Without this the run would record a flat trace and say why
+      // nowhere, so silence is given a deadline and answered by polling.
+      this.streamWatchdogId = setTimeout(() => {
+        this.streamWatchdogId = null;
+        if (this.samplingRequested && this.isStreaming && this.samplesSinceStreamStart === 0) {
+          this.diagnosticsProperty.value = "stream silent; polling instead";
+          this.isStreaming = false;
+          device.stopStreaming?.().catch(() => undefined);
+          this.startPolling();
+        }
+      }, STREAM_SILENCE_TIMEOUT_MS);
       device
-        .startStreaming(this.samplePeriodMicroseconds / 1000, (echoTimeMicroseconds) => {
+        .startStreaming(this.samplePeriodMs, (echoTimeMicroseconds) => {
           this.acceptReading(echoTimeMicroseconds);
         })
         .catch((error: unknown) => {
+          // A device that will not stream still answers single reads, so the
+          // run carries on polling rather than recording nothing at all. Unless
+          // the run ended while the refusal was in flight, in which case the
+          // request is gone and starting a timer now would outlive it.
           this.isStreaming = false;
           this.diagnosticsProperty.value = `streaming refused: ${error instanceof Error ? error.message : error}`;
+          if (this.samplingRequested) {
+            this.startPolling();
+          }
         });
       return;
     }
 
+    this.startPolling();
+  }
+
+  private startPolling(): void {
+    if (this.pollTimerId !== null) {
+      return;
+    }
     const generation = ++this.pollingGeneration;
     this.poll(generation).catch(() => undefined);
     this.pollTimerId = setInterval(() => {
       this.poll(generation).catch(() => undefined);
-    }, this.pollIntervalMs);
+    }, this.samplePeriodMs);
   }
 
   public stopSampling(): void {
+    this.samplingRequested = false;
     this.pollingGeneration += 1;
+    if (this.streamWatchdogId !== null) {
+      clearTimeout(this.streamWatchdogId);
+      this.streamWatchdogId = null;
+    }
     if (this.pollTimerId !== null) {
       clearInterval(this.pollTimerId);
       this.pollTimerId = null;
     }
     this.isPolling = false;
-    if (this.isStreaming) {
-      this.isStreaming = false;
-      this.device?.stopStreaming?.().catch(() => undefined);
-    }
+    this.isStreaming = false;
+    // Asked for unconditionally, not just when this class believes it is
+    // streaming. A streaming device keeps its own clock: if the stop is missed
+    // it goes on ranging for as long as it has power, which is the one failure
+    // here that outlives the run. `stopStreaming` knows whether it is owed.
+    this.device?.stopStreaming?.().catch(() => undefined);
   }
 
   /**
@@ -326,6 +404,7 @@ export class MotionSensorSource implements TPositionSource {
     }
 
     this.consecutiveFailures = 0;
+    this.samplesSinceStreamStart += 1;
     if (Number.isFinite(metres)) {
       // Out-of-range echoes read as wild distances; clamping keeps the walker
       // on the track and the trace on the chart instead of flinging both.
@@ -349,6 +428,9 @@ export class MotionSensorSource implements TPositionSource {
 
   public dispose(): void {
     this.stopSampling();
+    if (this.sampleRateProperty.hasListener(this.handleSampleRateChange)) {
+      this.sampleRateProperty.unlink(this.handleSampleRateChange);
+    }
     if (this.device !== null) {
       // Fire-and-forget: dispose cannot await, and a failed teardown of a link
       // that is going away anyway has nothing useful to report.
@@ -362,6 +444,7 @@ export class MotionSensorSource implements TPositionSource {
     this.measurementListProperty.dispose();
     this.diagnosticsProperty.dispose();
     this.availableProperty.dispose();
+    this.ownedSampleRateProperty?.dispose();
   }
 }
 

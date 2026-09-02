@@ -268,6 +268,7 @@ export class MotionMatchScreenView extends ScreenView {
           runControl.tryAgainButton,
           ...(providedOptions.writablePositionProperty ? [playAreaNode.walkerNode] : []),
           ...(sensorPanel?.connectButton ? [sensorPanel.connectButton] : []),
+          ...(sensorPanel?.connectUsbButton ? [sensorPanel.connectUsbButton] : []),
           ...(sensorPanel ? [sensorPanel.disconnectButton] : []),
           resetAllButton,
         ],

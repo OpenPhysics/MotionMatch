@@ -139,10 +139,11 @@ period in seconds by `0x1.e848p+19` (1e6) before `SetSampleConfig`, and
 `BLEInterface::StartSampling` multiplies by `0x1.f4p+9` (1000) and masks to
 11 bits before `StartSampling`. So 20 Hz is `50000` µs and `50` ms respectively.
 
-**A sample rate is not a knob on polling.** It configures the device's own
-sampler, which produces nothing until `START_SAMPLING` runs; `READ_ONE_SAMPLE`
-is unaffected. Asking for a rate therefore means switching to streaming, and
-`?sensorSampleRateHz=` does exactly that on a transport that supports it.
+**A sample rate is two different things.** On the device it configures its own
+sampler, which produces nothing until `START_SAMPLING` runs and leaves
+`READ_ONE_SAMPLE` unaffected; on the host it is simply how often the poll timer
+fires. The sample-rate preference sets whichever of the two is in play, so the
+number means the same thing to the student either way.
 
 Captured USB traffic gives the whole shape:
 
@@ -160,10 +161,28 @@ interval. `UsbMotionSensor.drainStream` reads, dispatches, and acknowledges;
 loop uses, so clamping, diagnostics and failure counting are shared.
 
 Streaming buys firmware-paced sampling with no round-trip jitter. It costs the
-guarantee that a dropped read is harmless, so polling stays the default: leave
-`?sensorSampleRateHz=` at 0 and the sim behaves exactly as it always has.
-Bluetooth has no streaming path here — its characteristics 4 and 5 are never
-discovered — so a rate is ignored there and polling continues.
+guarantee that a dropped read is harmless, which is why polling is the fallback
+at every step rather than a mode to choose: Bluetooth has no streaming path here
+(its characteristics 4 and 5 are never discovered) and polls; a device that
+refuses `START_SAMPLING` is polled instead; and a device that accepts it and
+then says nothing for `STREAM_SILENCE_TIMEOUT_MS` is polled too. That last one
+matters because it is the failure a stream cannot report — there is no round
+trip left to fail — and without the deadline the run would record a flat trace
+and explain itself nowhere. `?sensorStreaming=false` forces polling outright.
+
+It also costs a stop. A polled sensor is silent the moment the timer is cleared;
+a streaming one is on its own clock and goes on ranging — clicking, drawing
+power — until `STOP_SAMPLING` reaches it, and over USB it stays powered whether
+the page is listening or not. So `UsbMotionSensor` tracks the device's state
+(`deviceIsSampling`, true from the start command until the stop) apart from the
+read loop's (`draining`). Ending the loop does not stop the device, and an
+earlier version conflated the two: any failed transfer ended the loop *and*
+cleared the flag, so the stop at the end of the run was skipped and the sensor
+ran on until it was unplugged. For the same reason the loop now tolerates
+`STREAM_FAILURE_TOLERANCE` bad transfers in a row rather than ending on the
+first, `stopStreaming` is sent whatever the loop is doing, `disconnect` sends it
+before closing the device, and `MotionSensorSource.stopSampling` asks for it
+unconditionally rather than only when it believes a stream is running.
 
 ### USB is a real transport for this sensor
 
@@ -236,14 +255,28 @@ already carries, so `PascoMotionProtocol.ts` is reused as-is and only
 the student — but it is a second transport to maintain and test, and WebUSB on
 Windows needs the device bound to WinUSB.
 
-### Why 20 Hz leaves the sensor room
+Both are therefore offered side by side: `SensorPanel` shows one Connect button
+per transport whose API the browser has, and `connect()` takes the transport as
+an argument rather than reading a setting. That is not only tidier than a query
+parameter — it is forced by the user gesture. The picker has to open from the
+button's own call stack, so the transport cannot be chosen after the click, and
+a teacher plugging in a cable should not have to reload the page with a
+parameter to use it. `TMotionSensorDevice` keeps the difference below the model:
+nothing above `MotionSensorSource` knows which transport carried a reading.
+
+### Why the sample rate has a ceiling
 
 Maximum distance falls as the rate rises, because an echo has to return before
 the next ping leaves. The PS-3219 manual quotes 1.72 m at 100 Hz, 0.86 m at
 200 Hz and 0.69 m at 250 Hz (`MaxRate="250Hz"`) — all of them `c/2f` with
 c = 344 m/s. At `SAMPLE_RATE_HZ` = 20 that ceiling is 8.6 m, which is where the
 datasheet's `Maximum="8"` for position comes from, and four times the 2 m the
-axis needs. `SENSOR_MINIMUM_RANGE_M` = 0.15 is the other end of the same
+axis needs. The sensor sample rate — `DEFAULT_SENSOR_SAMPLE_RATE_HZ` = 25, and
+the Preferences slider that moves it — is bounded by
+`SENSOR_SAMPLE_RATE_RANGE_HZ` = 5–50 Hz for the same reason: at 50 Hz the echo
+ceiling is 3.44 m, still comfortably past the far end of the track, and the
+floor is deliberately below the model's own 20 Hz so a link that cannot keep up
+is visible in the trace rather than merely suspected. `SENSOR_MINIMUM_RANGE_M` = 0.15 is the other end of the same
 mechanism: about 0.85 ms of transducer dead time after the outgoing burst.
 (The datasheet's `Minimum="0.015"` is off by a factor of ten; the manual, the
 knowledge base and the dead time all agree on 0.15 m.)
@@ -278,10 +311,9 @@ knowledge base and the dead time all agree on 0.15 m.)
 |---|---|---|
 | `?matchTolerance=` | 0.125 | Half-width of the position match band, in metres (public) |
 | `?showDiagnostics=` | false | Show the device's measurement list and raw readings |
-| `?pollIntervalMs=` | 40 | Sensor poll period; raise it when debugging a flaky link |
-| `?sensorRange=` | long | Receiver range asked for at connect: `short` or `long` |
-| `?sensorTransport=` | bluetooth | `usb` reaches the sensor over WebUSB instead |
-| `?sensorSampleRateHz=` | 0 | Stream at this rate instead of polling; 0 polls. USB only |
+| `?sensorSampleRateHz=` | 25 | How often to read the sensor, 5–50 Hz; also in Preferences (public) |
+| `?sensorRange=` | device | Receiver range asked for at connect: `short` or `long` |
+| `?sensorStreaming=` | true | Let a transport that can stream keep the device's own clock; false polls |
 | `?usbBringUp=` | off | `probe` reports USB descriptors and sends nothing; `all` unfilters the picker |
 
 ## Testing

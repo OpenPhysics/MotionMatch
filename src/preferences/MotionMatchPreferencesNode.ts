@@ -3,8 +3,8 @@
  *
  * The Preferences → Simulation tab.
  *
- * Teacher-facing controls for match tolerance, optional motion hints, and raw
- * sensor diagnostics.
+ * Teacher-facing controls for match tolerance, optional motion hints, the
+ * sensor's sample rate, and raw sensor diagnostics.
  *
  * Note the text colour: the Preferences dialog is always light, whatever colour
  * profile the sim is in, so labels here use `controlSurfaceTextColorProperty`
@@ -17,7 +17,7 @@ import { Checkbox } from "scenerystack/sun";
 import type { Tandem } from "scenerystack/tandem";
 import { StringManager } from "../i18n/StringManager.js";
 import MotionMatchColors from "../MotionMatchColors.js";
-import { POSITION_TOLERANCE_RANGE_M } from "../MotionMatchConstants.js";
+import { POSITION_TOLERANCE_RANGE_M, SENSOR_SAMPLE_RATE_RANGE_HZ } from "../MotionMatchConstants.js";
 import MotionMatchNamespace from "../MotionMatchNamespace.js";
 import type { MotionMatchPreferencesModel } from "./MotionMatchPreferencesModel.js";
 
@@ -43,6 +43,27 @@ export class MotionMatchPreferencesNode extends Node {
     );
 
     const toleranceDescription = new Text(strings.matchToleranceDescriptionStringProperty, {
+      font: DESCRIPTION_FONT,
+      fill: MotionMatchColors.controlSurfaceTextColorProperty,
+      maxWidth: CONTENT_WIDTH,
+    });
+
+    // Whole hertz only: the rate is a device setting, and a slider that lands on
+    // 23.7 Hz would suggest a precision neither transport can honour.
+    const sampleRateControl = new NumberControl(
+      strings.sensorSampleRateStringProperty,
+      preferences.sensorSampleRateProperty,
+      SENSOR_SAMPLE_RATE_RANGE_HZ,
+      {
+        delta: 1,
+        titleNodeOptions: { font: LABEL_FONT, fill: MotionMatchColors.controlSurfaceTextColorProperty },
+        numberDisplayOptions: { decimalPlaces: 0, textOptions: { font: LABEL_FONT } },
+        sliderOptions: { constrainValue: (value: number) => Math.round(value) },
+        ...(tandem ? { tandem: tandem.createTandem("sampleRateControl") } : {}),
+      },
+    );
+
+    const sampleRateDescription = new Text(strings.sensorSampleRateDescriptionStringProperty, {
       font: DESCRIPTION_FONT,
       fill: MotionMatchColors.controlSurfaceTextColorProperty,
       maxWidth: CONTENT_WIDTH,
@@ -79,7 +100,14 @@ export class MotionMatchPreferencesNode extends Node {
         new VBox({
           align: "left",
           spacing: 12,
-          children: [toleranceControl, toleranceDescription, motionDescriptionsCheckbox, diagnosticsCheckbox],
+          children: [
+            toleranceControl,
+            toleranceDescription,
+            motionDescriptionsCheckbox,
+            sampleRateControl,
+            sampleRateDescription,
+            diagnosticsCheckbox,
+          ],
         }),
       ],
     });

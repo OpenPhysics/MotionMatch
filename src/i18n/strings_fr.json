@@ -43,14 +43,15 @@
     "connectFirst": "Connectez un capteur pour démarrer"
   },
   "sensor": {
-    "connect": "Connecter le capteur",
+    "connectBluetooth": "Connecter en Bluetooth",
+    "connectUsb": "Connecter en USB",
     "disconnect": "Déconnecter",
     "statusDisconnected": "Déconnecté",
     "statusConnecting": "Connexion…",
     "statusConnected": "Connecté",
     "statusError": "Problème de connexion",
     "lostConnection": "Le capteur s'est déconnecté.",
-    "unavailableInsecure": "Web Bluetooth exige une page sécurisée. Ouvrez cette simulation en HTTPS ou sur localhost.",
+    "unavailableInsecure": "La connexion au capteur exige une page sécurisée. Ouvrez cette simulation en HTTPS ou sur localhost.",
     "unavailableBrowser": "Ce navigateur ne peut pas se connecter au capteur. Utilisez Chrome, Edge ou Opera.",
     "rawPositionPattern": "Capteur : {{position}} m"
   },
@@ -59,7 +60,9 @@
     "matchTolerance": "Tolérance de correspondance (m)",
     "matchToleranceDescription": "Écart maximal à la courbe cible encore considéré comme une correspondance. La bande dessinée autour de la courbe suit cette valeur.",
     "showDiagnostics": "Afficher le diagnostic du capteur",
-    "showMotionDescriptions": "Afficher les indications descriptives de mouvement dans le menu des courbes"
+    "showMotionDescriptions": "Afficher les indications descriptives de mouvement dans le menu des courbes",
+    "sensorSampleRate": "Fréquence d'échantillonnage du capteur (Hz)",
+    "sensorSampleRateDescription": "Fréquence à laquelle l'écran Capteur de mouvement lit le capteur. Abaissez-la si la liaison décroche ; augmentez-la pour un tracé plus fin."
   },
   "a11y": {
     "simulation": {
@@ -102,7 +105,8 @@
       "controls": {
         "walker": "Lecture du capteur",
         "walkerHelp": "Ce repère suit le capteur de mouvement. Approchez-vous ou éloignez-vous du capteur pour le déplacer.",
-        "connectButton": "Se connecter à un capteur de mouvement sans fil PASCO",
+        "connectBluetoothButton": "Se connecter en Bluetooth à un capteur de mouvement sans fil PASCO",
+        "connectUsbButton": "Se connecter à un capteur de mouvement PASCO branché en USB",
         "disconnectButton": "Déconnecter le capteur de mouvement",
         "profileComboBox": "Courbe cible",
         "profileComboBoxHelp": "Choisissez lequel des neuf graphiques de mouvement reproduire.",
