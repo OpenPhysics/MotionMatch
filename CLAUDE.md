@@ -25,6 +25,8 @@ the profiles, the derivative relationship and the scoring rule are in
 | `src/common/model/motionMath.ts` | Least-squares derivative + windowed differentiator (pure) |
 | `src/common/model/PositionSource.ts` | `TPositionSource` — the seam between the two screens |
 | `src/common/model/MotionSensorSource.ts` | The PASCO link: lazy device, poll loop, never-rejecting connect |
+| `src/sensor/model/MotionSensorDevice.ts` | `TMotionSensorDevice` — the seam between the two transports |
+| `src/sensor/model/UsbMotionSensor.ts` | WebUSB sibling of `BluetoothMotionSensor`; same packets |
 | `src/common/view/MotionMatchScreenView.ts` | **One** ScreenView, used by both screens |
 | `src/common/view/MatchChartNode.ts` | bamboo chart: target, tolerance band, live trace |
 | `src/common/view/PlayAreaNode.ts` | Track, sensor, walker + drag / keyboard listeners |
@@ -50,7 +52,7 @@ way to guarantee that.
   An earlier version drifted and ended runs a sample early; tests pin it.
 - **`dispose()` must stay idempotent** — axon Properties throw on double
   dispose, and the memory-leak suite disposes twice on purpose.
-- **`AxisLine` is shown only in velocity mode**; in position mode (0–4 m) it
+- **`AxisLine` is shown only in velocity mode**; in position mode (0–2 m) it
   would sit on the bottom border and say nothing.
 - **`ScreenView` throws if you set `pdomOrder` on itself** — it lives on a
   wrapper `Node`.
@@ -81,6 +83,10 @@ npm start   # then open the Motion Sensor screen
 of every measurement each poll — the way to tell a genuine zero reading
 (nothing within 0.15–4 m to echo off) from a device answering nothing at all.
 `?pollIntervalMs=` raises the poll period when debugging a flaky link.
+`?sensorRange=short` asks the device for its close-range receiver setting; the
+default `long` is what it powers up on, so the default path sends no range
+command at all. The command was recovered from SPARKvue's WebAssembly build, not
+captured off the wire — verify `short` on hardware before making it the default.
 
 ## Commands
 

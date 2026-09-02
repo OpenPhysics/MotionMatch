@@ -54,6 +54,53 @@ const motionMatchQueryParameters = QueryStringMachine.getAll({
     defaultValue: DEFAULT_POLL_INTERVAL_MS,
     isValidValue: (value: number) => value >= 10 && value <= 1000,
   },
+
+  /**
+   * Receiver range to ask the sensor for at connect. `long` is the range the
+   * device powers up on and the only one this sim has been run on; `short`
+   * raises the receiver's gain, which suits a 0–2 m axis in principle and is
+   * what PASCO recommends for close work. Needs hardware to tell which tracks
+   * a walking student better — hence a query parameter rather than a default.
+   */
+  sensorRange: {
+    type: "string",
+    defaultValue: "device",
+    validValues: ["device", "short", "long"],
+  },
+
+  /**
+   * How to reach the PS-3219. `usb` uses WebUSB against PASCO's vendor ID and
+   * needs the sensor plugged into the machine running the browser; `bluetooth`
+   * is the default and the only path that has been used with students.
+   */
+  sensorTransport: {
+    type: "string",
+    defaultValue: "bluetooth",
+    validValues: ["bluetooth", "usb"],
+  },
+
+  /**
+   * Put the device on its own clock at this rate instead of polling it, which
+   * removes the round-trip jitter a poll cannot avoid. Needs a transport that
+   * carries the stream, so USB only; Bluetooth ignores it and keeps polling.
+   * Zero, the default, polls everywhere and is what students run.
+   */
+  sensorSampleRateHz: {
+    type: "number",
+    defaultValue: 0,
+    isValidValue: (value: number) => value === 0 || (value >= 1 && value <= 250),
+  },
+
+  /**
+   * USB bring-up only. `probe` opens the sensor, reports its descriptors and
+   * sends nothing — the safe first look, since a PS-3219 can be knocked off the
+   * bus by transfers it dislikes. `all` drops the vendor filter from the picker.
+   */
+  usbBringUp: {
+    type: "string",
+    defaultValue: "off",
+    validValues: ["off", "probe", "all", "probeAll"],
+  },
 });
 
 MotionMatchNamespace.register("motionMatchQueryParameters", motionMatchQueryParameters);

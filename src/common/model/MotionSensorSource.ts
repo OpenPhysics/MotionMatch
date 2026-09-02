@@ -4,10 +4,11 @@
  * The Motion Sensor screen's source: a PASCO Wireless Motion Sensor (PS-3219)
  * reached directly through Web Bluetooth using its small PASCO wire protocol.
  *
- * ── Polling, not streaming ────────────────────────────────────────────────────
- * One `readEchoTime` is one BLE round trip. Polling begins only when a run is
- * started and stops when that run ends, silencing the ultrasonic transducer
- * between attempts while leaving the Bluetooth connection ready.
+ * ── Polling by default, streaming on request ──────────────────────────────────
+ * One `readEchoTime` is one round trip. Sampling begins only when a run starts
+ * and stops when it ends, silencing the ultrasonic transducer in between while
+ * leaving the connection ready. Given a rate and a transport that can carry it,
+ * the device keeps time instead and pushes samples — see `startSampling`.
  *
  * ── Errors never reach the caller ─────────────────────────────────────────────
  * `connect()` resolves even when it fails. Connection outcomes are UI state, not
@@ -25,14 +26,39 @@ import {
   POSITION_RANGE_M,
 } from "../../MotionMatchConstants.js";
 import MotionMatchNamespace from "../../MotionMatchNamespace.js";
-import { BluetoothMotionSensor, DeviceSelectionCancelled } from "../../sensor/model/BluetoothMotionSensor.js";
-import { echoTimeToMetres } from "../../sensor/model/PascoMotionProtocol.js";
+import { BluetoothMotionSensor } from "../../sensor/model/BluetoothMotionSensor.js";
+import { DeviceSelectionCancelled, type TMotionSensorDevice } from "../../sensor/model/MotionSensorDevice.js";
+import { echoTimeToMetres, type MotionRangeValue } from "../../sensor/model/PascoMotionProtocol.js";
+import { UsbMotionSensor } from "../../sensor/model/UsbMotionSensor.js";
 import { ConnectionState, type ConnectionStateValue } from "./ConnectionState.js";
 import { PositionSourceType, type PositionSourceTypeValue, type TPositionSource } from "./PositionSource.js";
+
+/** The two ways a PS-3219 can be reached from a browser. */
+export const SensorTransport = {
+  BLUETOOTH: "bluetooth",
+  USB: "usb",
+} as const;
+
+export type SensorTransportValue = (typeof SensorTransport)[keyof typeof SensorTransport];
 
 export type MotionSensorSourceOptions = {
   /** Poll period in milliseconds; overridable from a query parameter for bring-up. */
   readonly pollIntervalMs?: number;
+  /**
+   * Receiver range to ask the device for once connected, or null to leave it on
+   * whatever it powered up with.
+   */
+  readonly range?: MotionRangeValue | null;
+  /** Which transport to reach the PS-3219 over. */
+  readonly transport?: SensorTransportValue;
+  /** USB bring-up switches; ignored on Bluetooth. */
+  readonly usbProbeOnly?: boolean;
+  readonly usbAcceptAllDevices?: boolean;
+  /**
+   * Stream at this period, in microseconds, instead of polling — or null to
+   * poll. Ignored by transports that cannot carry the stream.
+   */
+  readonly samplePeriodMicroseconds?: number | null;
   /**
    * When true, publishes the raw echo time and calculated position.
    */
@@ -70,13 +96,19 @@ export class MotionSensorSource implements TPositionSource {
   private readonly availableProperty: BooleanProperty;
 
   private readonly pollIntervalMs: number;
+  private readonly range: MotionRangeValue | null;
+  private readonly transport: SensorTransportValue;
+  private readonly usbProbeOnly: boolean;
+  private readonly usbAcceptAllDevices: boolean;
+  private readonly samplePeriodMicroseconds: number | null;
   private readonly diagnosticsEnabledProperty: TReadOnlyProperty<boolean> | null;
   private readonly handleUnexpectedDisconnect: () => void;
 
-  private device: BluetoothMotionSensor | null = null;
+  private device: TMotionSensorDevice | null = null;
 
   private pollTimerId: ReturnType<typeof setInterval> | null = null;
   private isPolling = false;
+  private isStreaming = false;
   /** Invalidates an asynchronous read if sampling stops while it is in flight. */
   private pollingGeneration = 0;
   private consecutiveFailures = 0;
@@ -84,6 +116,11 @@ export class MotionSensorSource implements TPositionSource {
 
   public constructor(providedOptions?: MotionSensorSourceOptions) {
     this.pollIntervalMs = providedOptions?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    this.range = providedOptions?.range ?? null;
+    this.transport = providedOptions?.transport ?? SensorTransport.BLUETOOTH;
+    this.usbProbeOnly = providedOptions?.usbProbeOnly === true;
+    this.usbAcceptAllDevices = providedOptions?.usbAcceptAllDevices === true;
+    this.samplePeriodMicroseconds = providedOptions?.samplePeriodMicroseconds ?? null;
     this.diagnosticsEnabledProperty = providedOptions?.diagnosticsEnabledProperty ?? null;
 
     this.sensorPositionProperty = new NumberProperty(0, { range: POSITION_RANGE_M, units: "m" });
@@ -124,7 +161,14 @@ export class MotionSensorSource implements TPositionSource {
     this.connectionStateProperty.value = ConnectionState.CONNECTING;
     this.errorMessageProperty.value = null;
 
-    const device = new BluetoothMotionSensor(this.handleUnexpectedDisconnect);
+    const device: TMotionSensorDevice =
+      this.transport === SensorTransport.USB
+        ? new UsbMotionSensor(this.handleUnexpectedDisconnect, {
+            probeOnly: this.usbProbeOnly,
+            acceptAllDevices: this.usbAcceptAllDevices,
+            logDetails: this.diagnosticsEnabledProperty?.value === true,
+          })
+        : new BluetoothMotionSensor(this.handleUnexpectedDisconnect);
     this.device = device;
 
     try {
@@ -147,6 +191,25 @@ export class MotionSensorSource implements TPositionSource {
     this.availableProperty.value = true;
     this.consecutiveFailures = 0;
     this.diagnosticsStartTimeMs = performance.now();
+
+    if (this.usbProbeOnly) {
+      // The whole point of a probe is that the device is left untouched.
+      this.diagnosticsProperty.value = device.diagnosticText ?? "probe complete";
+      return;
+    }
+
+    // Neither settings command is worth failing a connection over: the sensor
+    // measures fine on its power-up defaults, and one that ignores a command
+    // simply keeps them. Diagnostics say so; the student sees nothing.
+    if (this.range !== null) {
+      try {
+        await device.setRange(this.range);
+      } catch {
+        this.diagnosticsProperty.value = "range unchanged";
+      }
+    }
+    // The sample period is not sent here: it is an argument to starting the
+    // stream, and a run is what starts one. See `startSampling`.
   }
 
   /** Tears the link down deliberately. Never rejects. */
@@ -167,11 +230,29 @@ export class MotionSensorSource implements TPositionSource {
   }
 
   public startSampling(): void {
-    if (this.pollTimerId !== null) {
+    if (this.pollTimerId !== null || this.isStreaming || this.usbProbeOnly) {
       return;
     }
-    const generation = ++this.pollingGeneration;
     this.diagnosticsStartTimeMs = performance.now();
+
+    // Streaming lets the device keep time, which removes the round-trip jitter
+    // a poll cannot avoid. It needs both a requested rate and a transport that
+    // can carry it; anything else falls back to polling, which always works.
+    const device = this.device;
+    if (this.samplePeriodMicroseconds !== null && device?.startStreaming) {
+      this.isStreaming = true;
+      device
+        .startStreaming(this.samplePeriodMicroseconds / 1000, (echoTimeMicroseconds) => {
+          this.acceptReading(echoTimeMicroseconds);
+        })
+        .catch((error: unknown) => {
+          this.isStreaming = false;
+          this.diagnosticsProperty.value = `streaming refused: ${error instanceof Error ? error.message : error}`;
+        });
+      return;
+    }
+
+    const generation = ++this.pollingGeneration;
     this.poll(generation).catch(() => undefined);
     this.pollTimerId = setInterval(() => {
       this.poll(generation).catch(() => undefined);
@@ -185,6 +266,10 @@ export class MotionSensorSource implements TPositionSource {
       this.pollTimerId = null;
     }
     this.isPolling = false;
+    if (this.isStreaming) {
+      this.isStreaming = false;
+      this.device?.stopStreaming?.().catch(() => undefined);
+    }
   }
 
   /**
@@ -204,29 +289,16 @@ export class MotionSensorSource implements TPositionSource {
       if (generation !== this.pollingGeneration) {
         return;
       }
-      const metres = echoTimeToMetres(echoTimeMicroseconds);
-      this.diagnosticsProperty.value = `${POSITION_MEASUREMENT}=${metres}`;
-
-      if (this.diagnosticsEnabledProperty?.value === true) {
-        const elapsedSeconds = (performance.now() - this.diagnosticsStartTimeMs) / 1000;
-        // biome-ignore lint/suspicious/noConsole: Explicit hardware bring-up diagnostics.
-        console.info(`[MotionMatch sensor +${elapsedSeconds.toFixed(3)} s]`, {
-          EchoTimeMicroseconds: echoTimeMicroseconds,
-          Position: metres,
-        });
-      }
-
-      this.consecutiveFailures = 0;
-      if (Number.isFinite(metres)) {
-        // Out-of-range echoes read as wild distances; clamping keeps the walker
-        // on the track and the trace on the chart instead of flinging both.
-        this.sensorPositionProperty.value = POSITION_RANGE_M.constrainValue(metres);
-      }
+      this.acceptReading(echoTimeMicroseconds);
     } catch (error) {
       if (generation !== this.pollingGeneration) {
         return;
       }
       this.consecutiveFailures += 1;
+      if (this.diagnosticsEnabledProperty?.value === true) {
+        // biome-ignore lint/suspicious/noConsole: Explicit hardware bring-up diagnostics.
+        console.warn("[MotionMatch sensor] read failed", error, device.diagnosticText ?? "");
+      }
       if (this.consecutiveFailures >= MAXIMUM_CONSECUTIVE_FAILURES) {
         this.stopSampling();
         this.availableProperty.value = false;
@@ -235,6 +307,29 @@ export class MotionSensorSource implements TPositionSource {
       }
     } finally {
       this.isPolling = false;
+    }
+  }
+
+  /** One reading, however it arrived — polled round trip or pushed by the device. */
+  private acceptReading(echoTimeMicroseconds: number): void {
+    const metres = echoTimeToMetres(echoTimeMicroseconds);
+    this.diagnosticsProperty.value = `${POSITION_MEASUREMENT}=${metres}`;
+
+    if (this.diagnosticsEnabledProperty?.value === true) {
+      const elapsedSeconds = (performance.now() - this.diagnosticsStartTimeMs) / 1000;
+      // biome-ignore lint/suspicious/noConsole: Explicit hardware bring-up diagnostics.
+      console.info(`[MotionMatch sensor +${elapsedSeconds.toFixed(3)} s]`, {
+        EchoTimeMicroseconds: echoTimeMicroseconds,
+        Position: metres,
+        ...(this.device?.diagnosticText ? { RawTransfer: this.device.diagnosticText } : {}),
+      });
+    }
+
+    this.consecutiveFailures = 0;
+    if (Number.isFinite(metres)) {
+      // Out-of-range echoes read as wild distances; clamping keeps the walker
+      // on the track and the trace on the chart instead of flinging both.
+      this.sensorPositionProperty.value = POSITION_RANGE_M.constrainValue(metres);
     }
   }
 
