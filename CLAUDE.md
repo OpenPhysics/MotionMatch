@@ -1,7 +1,7 @@
 # CLAUDE.md — Motion Match
 
 Sim-specific context for AI assistants. General SceneryStack guidance:
-[OpenPhysics/.github/CLAUDE.md](https://github.com/OpenPhysics/.github/blob/main/CLAUDE.md).
+[OpenLyceum/.github/CLAUDE.md](https://github.com/OpenLyceum/.github/blob/main/CLAUDE.md).
 
 ## Project
 

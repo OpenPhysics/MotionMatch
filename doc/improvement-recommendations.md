@@ -36,7 +36,7 @@ Node 25 passes `engines` and fails in CI anyway. Tighten to `">=24 <25"` and:
 ### 3. Reusable workflows pinned to `@main`
 
 `.github/workflows/ci.yml` and `deploy.yml` reference
-`OpenPhysics/Baton/.github/workflows/*@main`. Every sim using this template is
+`OpenLyceum/Baton/.github/workflows/*@main`. Every sim using this template is
 exposed to a compromised Baton commit. Pin to a SHA (or a `@v1` tag) for the
 template — it's the one repo forks will copy. At minimum, document the trade-off
 in `CLAUDE.md`.

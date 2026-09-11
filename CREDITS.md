@@ -27,4 +27,4 @@ programmatically from SceneryStack primitives. The sim ships no image assets.
 ## License
 
 GNU Affero General Public License v3.0 or later — see the
-[org LICENSE](https://github.com/OpenPhysics/.github/blob/main/LICENSE).
+[org LICENSE](https://github.com/OpenLyceum/.github/blob/main/LICENSE).

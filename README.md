@@ -1,6 +1,6 @@
 # Motion Match
 
-[![CI](https://github.com/OpenPhysics/MotionMatch/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPhysics/MotionMatch/actions/workflows/ci.yml)
+[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
 Match a target position-vs-time or velocity-vs-time graph by moving — with the
 mouse, or by walking in front of a PASCO Wireless Motion Sensor over Web
@@ -80,8 +80,8 @@ origin.
 ## License
 
 GNU Affero General Public License v3.0 or later — see the
-[org LICENSE](https://github.com/OpenPhysics/.github/blob/main/LICENSE).
+[org LICENSE](https://github.com/OpenLyceum/.github/blob/main/LICENSE).
 
 ## Contributing
 
-See the [org contributing guide](https://github.com/OpenPhysics/.github/blob/main/CONTRIBUTING.md).
+See the [org contributing guide](https://github.com/OpenLyceum/.github/blob/main/CONTRIBUTING.md).

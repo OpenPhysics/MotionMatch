@@ -70,7 +70,7 @@ onReadyToLaunch(() => {
 
     // Optional: fill in credits shown in Help → About
     credits: {
-      softwareDevelopment: "OpenPhysics",
+      softwareDevelopment: "OpenLyceum",
     },
   });
 
